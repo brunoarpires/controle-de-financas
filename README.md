@@ -7,11 +7,17 @@ O app funciona de dois jeitos:
 - **Modo família (nuvem):** com um projeto gratuito no [Supabase](https://supabase.com), cada pessoa tem a **própria conta** e todos veem os dados do **perfil** (uma família, ou uma empresa). Cada lançamento guarda **quem lançou**, e dá para filtrar por pessoa ou ver o perfil todo. Continua funcionando **offline** e sincroniza quando a internet volta.
 - **Modo local:** sem configurar nada, os dados ficam só **no próprio aparelho** (IndexedDB), sem login. Faça **backup** em *Ajustes → Baixar backup*.
 
-| Início (desktop) | Lançamentos (celular) | Orçamento (celular) |
-|---|---|---|
-| ![Dashboard](screenshots/desktop-dashboard.png) | ![Lançamentos](screenshots/mobile-lancamentos.png) | ![Orçamento](screenshots/mobile-orcamento.png) |
+As telas abaixo usam **dados fictícios** (Supermercado Exemplo, Padaria Pão Quente, Família Silva etc.).
 
-Mais telas em [`screenshots/`](screenshots): importação de planilha, novo lançamento, modo escuro e login do modo família.
+| Início (desktop) | Lançamentos (celular) | Leitor de NFC-e (desktop) |
+|---|---|---|
+| ![Dashboard](docs/screenshots/desktop-dashboard.png) | ![Lançamentos](docs/screenshots/mobile-lancamentos.png) | ![Leitor de nota](docs/screenshots/desktop-leitor-nota.png) |
+
+| Orçamento (desktop) | Novo lançamento | Foto da nota (celular) |
+|---|---|---|
+| ![Orçamento](docs/screenshots/desktop-orcamento.png) | ![Novo lançamento](docs/screenshots/desktop-novo-lancamento.png) | ![Leitor no celular](docs/screenshots/mobile-leitor-nota.png) |
+
+Mais telas em [`docs/screenshots/`](docs/screenshots) e em [`screenshots/`](screenshots) (importação de planilha, modo escuro e login do modo família).
 
 ## Funções
 
