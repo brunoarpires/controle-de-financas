@@ -1,0 +1,19 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+html,body,#root{height:100%}
+html,body{overflow-x:hidden}
+select.input{@apply truncate pr-8}
+body{@apply bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 antialiased;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+
+@layer components{
+.card{@apply bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4}
+.btn{@apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition active:scale-95 disabled:opacity-50}
+.btn-primary{@apply btn bg-brand-600 text-white hover:bg-brand-700}
+.btn-ghost{@apply btn bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700}
+.btn-danger{@apply btn bg-rose-600 text-white hover:bg-rose-700}
+.input{@apply w-full min-w-0 text-base rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500}
+.label{@apply block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1}
+/* Evita overflow/corte de controles nativos de data/hora se ainda forem usados */
+input[type="date"],input[type="time"],input[type="datetime-local"]{@apply w-full min-w-0 max-w-full}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator{margin-inline-start:0}
+}
