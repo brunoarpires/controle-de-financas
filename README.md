@@ -9,6 +9,8 @@ O app funciona de dois jeitos:
 
 As telas abaixo usam **dados fictícios** (Supermercado Exemplo, Padaria Pão Quente, Família Silva etc.).
 
+![Controle de Finanças](docs/screenshots/capa-1200x627.png)
+
 | Início (desktop) | Lançamentos (celular) | Leitor de NFC-e (desktop) |
 |---|---|---|
 | ![Dashboard](docs/screenshots/desktop-dashboard.png) | ![Lançamentos](docs/screenshots/mobile-lancamentos.png) | ![Leitor de nota](docs/screenshots/desktop-leitor-nota.png) |
