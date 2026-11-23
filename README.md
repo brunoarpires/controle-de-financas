@@ -1,13 +1,8 @@
 # Controle de Finanças
 
-App de **gestão financeira pessoal e familiar**, em português, com valores em **R$** e datas **dd/mm/aaaa**. Funciona no **celular** (instalável como PWA) e no **computador**.
+Projeto pessoal que comecei nas férias, pela necessidade de ter mais controle das minhas finanças — e de um app em português, com valores em **R$** e datas **dd/mm/aaaa**, que funcionasse no celular e no computador.
 
-O app funciona de dois jeitos:
-
-- **Modo família (nuvem):** com um projeto gratuito no [Supabase](https://supabase.com), cada pessoa tem a **própria conta** e todos veem os dados do **perfil** (uma família, ou uma empresa). Cada lançamento guarda **quem lançou**, e dá para filtrar por pessoa ou ver o perfil todo. Continua funcionando **offline** e sincroniza quando a internet volta.
-- **Modo local:** sem configurar nada, os dados ficam só **no próprio aparelho** (IndexedDB), sem login. Faça **backup** em *Ajustes → Baixar backup*.
-
-As telas abaixo usam **dados fictícios** (Supermercado Exemplo, Padaria Pão Quente, Família Silva etc.).
+O código está aberto (licença MIT) para quem quiser rodar no próprio ambiente. As telas abaixo usam **dados fictícios** (Supermercado Exemplo, Padaria Pão Quente, Família Silva etc.).
 
 ![Controle de Finanças](docs/screenshots/capa-1200x627.png)
 
@@ -21,132 +16,218 @@ As telas abaixo usam **dados fictícios** (Supermercado Exemplo, Padaria Pão Qu
 
 Mais telas em [`docs/screenshots/`](docs/screenshots) e em [`screenshots/`](screenshots) (importação de planilha, modo escuro e login do modo família).
 
-## Funções
+## Funcionalidades
 
-- **Início:** saldo do mês, receitas × despesas, gráfico de gastos por categoria, evolução dos últimos 6 meses, alertas de orçamento e últimos lançamentos.
-- **Lançamentos:** botões grandes de *− Despesa* e *+ Receita*, editar e excluir, filtro por mês, categoria e tipo, busca por texto e foto do comprovante anexada.
-- **Categorias** com ícone (emoji) e cor editáveis, mais **contas e cartões**.
-- **Orçamento** mensal por categoria, com barras de progresso e alertas ao chegar a 80% e ao estourar.
-- **Importar planilha** (CSV ou Excel `.xlsx`): você escolhe as colunas (data, descrição, valor, categoria), confere a prévia e confirma. Reconhece `1.234,56`, `-50,00`, `(12,30)`, datas `dd/mm/aaaa` e datas do Excel. Linhas repetidas vêm desmarcadas.
-- **Foto da nota fiscal** (NFC-e ou cupom):
-  1. lê o **QR Code** da NFC-e (jsQR) e pega o link da SEFAZ e a **chave de acesso** (44 dígitos);
-  2. consulta a **página pública da SEFAZ** via function `/api/nfce` (allowlist anti-SSRF; SP primeiro) e preenche valor a pagar, data/hora, CNPJ, pagamento e itens;
-  3. se a SEFAZ falhar (captcha/fora do ar), faz **OCR** no aparelho (tesseract.js, com detecção de rotação) e, se ainda faltar total/data, tenta o fallback opcional **OCR.space** via `/api/ocr`;
-  4. consulta o CNPJ na **[BrasilAPI](https://brasilapi.com.br)** (gratuita) para nome/endereço/CNAE (cache local);
-  5. **sugere a categoria** e mostra a **tela de revisão** antes de salvar.
-- Também interpreta comprovantes comuns (Pix, TED, boleto, recarga, débito, maquininhas Stone/C6).
-- **Categoria automática:** o app sugere a categoria pela descrição (palavras-chave como "uber", "drogaria", "ifood"…) e **aprende com as correções**.
-- **Modo claro/escuro/automático**, menu inferior no celular e lateral no computador.
-- **Backup** em arquivo JSON (com fotos), para restaurar ou passar para outro aparelho.
-- **Perfis:** além do perfil pessoal/familiar, dá para criar um perfil **empresa** (CNPJ opcional).
+- 🏠 **Início:** saldo do mês, receitas × despesas, gráfico de gastos por categoria, evolução dos últimos 6 meses, alertas de orçamento e últimos lançamentos.
+- 💸 **Lançamentos:** botões de *− Despesa* e *+ Receita*, edição e exclusão, filtro por mês, categoria e tipo, busca por texto, foto do comprovante e parcelas (até 48).
+- 📂 **Categorias e contas:** ícone (emoji) e cor editáveis; contas e cartões.
+- 📊 **Orçamento** mensal por categoria, com barras de progresso e alerta ao chegar a 80% e ao estourar.
+- 📥 **Importar planilha** (CSV ou Excel `.xlsx`) e **backup** em JSON (com fotos).
+- 🧾 **Leitura de nota fiscal** (NFC-e): QR Code, consulta à página pública da SEFAZ, OCR no aparelho e tela de revisão antes de salvar. Também interpreta comprovantes comuns (Pix, TED, boleto, recarga, débito, maquininhas Stone/C6).
+- 🏷️ **Categoria automática:** sugere pela descrição (palavras-chave) e aprende com as correções.
+- 👨‍👩‍👧 **Modo família** e 🏢 **modo empresa:** contas próprias, perfil compartilhado, convite, papéis de administrador e membro (detalhes abaixo).
+- 📴 **Modo local:** funciona só no aparelho, sem conta e sem configurar nuvem.
+- 🔐 **Segurança:** trava com biometria neste aparelho (WebAuthn) e, no modo nuvem, Row Level Security no banco e bucket privado das fotos.
+- 🌙 **Tema** claro, escuro ou automático; menu inferior no celular e lateral no computador. Instalável como **PWA**.
 
-## Como rodar no computador
+## Modo local
+
+Não precisa de Supabase nem de login. Os dados ficam só **neste aparelho**, no IndexedDB (Dexie). Cada navegador/aparelho tem a própria cópia.
+
+- Use *Ajustes → Baixar backup* para gerar um arquivo JSON (inclui as fotos) e *Restaurar backup* para trazer os dados de volta ou passar para outro aparelho.
+- Limpar os dados do site no navegador apaga tudo. Faça backups.
+- A internet só entra na leitura de nota (consulta SEFAZ, OCR de fallback e, se houver, BrasilAPI para CNPJ).
+
+Para usar o **mesmo** conjunto de dados no celular e no computador de forma contínua, ative o modo família (ou empresa) e faça login — ou troque backups entre os aparelhos.
+
+## Modo família
+
+Com um projeto gratuito no [Supabase](https://supabase.com), cada pessoa cria a **própria conta** (e-mail e senha) e entra em um **perfil compartilhado** (a “família”). No banco a tabela continua se chamando `familias`; cada linha é um perfil. A mesma pessoa pode participar de **vários perfis** — por exemplo a casa e a empresa — e troca entre eles no app. Os dados de um perfil não se misturam com os de outro (categoria ou conta de um perfil não pode ser usada em lançamento de outro).
+
+### Convite
+
+Quem **cria o perfil** vira **administrador**. Em *Família* o admin vê o **código de convite de 8 caracteres** (gerado no banco), pode **copiar o código**, gerar um **código novo** (o antigo deixa de valer) e tocar em **Enviar link**.
+
+O link tem o formato `?convite=CODIGO`. No celular, *Enviar link* abre o compartilhamento do sistema (a folha nativa, que costuma incluir o WhatsApp). Quem recebe o link (ou digita o código) cria a conta e entra como **membro**.
+
+### Papéis
+
+- **Administrador:** vê e edita tudo do perfil (incluindo lançamentos das outras pessoas); edita categorias, contas e orçamento; gera novo código; promove, rebaixa e remove pessoas; renomeia o perfil.
+- **Membro:** vê tudo do perfil e cria lançamentos; só altera ou apaga **os próprios**. Se tentar criar categoria/conta/orçamento, o servidor recusa e o app desfaz a alteração local.
+
+O autor de cada lançamento é sempre quem está logado (`user_id` forçado no banco).
+
+### Filtros e “Quem gastou no mês”
+
+Com duas ou mais pessoas no perfil, a tela inicial e Lançamentos mostram o filtro **Todos / por pessoa**. No Início aparece o cartão **“Quem gastou no mês”**, com o total de cada membro; tocar no nome aplica o mesmo filtro.
+
+### Migração dos dados locais
+
+Se a pessoa já usava o app no aparelho (modo local), no **primeiro login** o app pergunta se quer **enviar esses lançamentos para o perfil**. Eles ficam registrados como dela. Se recusar, os dados que estavam só neste aparelho são apagados (há confirmação antes).
+
+### Sincronização offline e conflito
+
+Sem internet o app continua funcionando: as alterações entram numa **fila no IndexedDB** e sobem quando a conexão volta. O canto da tela indica se está tudo salvo na nuvem ou quantas alterações ainda estão na fila.
+
+Regras de conflito, como o código faz:
+
+- Ao enviar, o app faz *upsert* no servidor. Se duas pessoas editarem **o mesmo** lançamento offline, **vale a última gravação que chegar na nuvem**.
+- Enquanto uma alteração local ainda não foi enviada, o app **não a sobrescreve** com o que baixar da nuvem.
+- Alterações recusadas (por exemplo, membro tentando editar o que não é dele) são **descartadas** e o dado volta ao que está na nuvem.
+- Lançamentos apagados são marcados como `excluido` no banco (não somem fisicamente).
+- Sair da conta apaga a **cópia local** deste aparelho (os dados continuam na nuvem). Se houver itens ainda não enviados, o app avisa antes.
+
+## Modo empresa
+
+O modo empresa **não é um sistema paralelo**: é o mesmo modelo de perfil, convite, papéis (administrador e membro), filtros, migração e sincronização descritos acima. A diferença está no **tipo** do perfil e no que é pré-carregado.
+
+- Ao criar um perfil, a pessoa escolhe **Pessoal / família** ou **Empresa**.
+- No tipo empresa, o **CNPJ é opcional**. Se informado, o app pode consultar a [BrasilAPI](https://brasilapi.com.br) no cadastro para preencher a razão social (e sugerir o nome do perfil). CNPJ e razão social aparecem na tela do perfil.
+- Os dados da empresa ficam em um perfil **separado** da casa: categorias, contas e lançamentos não se misturam. Sócios ou a equipe entram no mesmo perfil, cada um com a própria conta, e lançam juntos — com o mesmo filtro por pessoa e o cartão “Quem gastou no mês”.
+- **Categorias e contas iniciais são diferentes.** Empresa já vem com Fornecedores, Impostos, Pró-labore e salários, Aluguel e condomínio, Software e serviços, Marketing, Tarifas bancárias, Transporte, Material e equipamentos, Vendas e serviços, etc., e com Conta PJ, Cartão PJ e Caixa. O perfil pessoal/família vem com Mercado, Alimentação, Moradia, Salário, etc., e Conta corrente, Cartão de crédito e Dinheiro.
+- Ícone 🏢 no seletor de perfis (o perfil pessoal usa 👨‍👩‍👧).
+- As políticas de segurança (RLS) e os papéis admin/membro são **os mesmos**. Não há um conjunto extra de permissões só para empresa.
+
+## Leitura de nota fiscal
+
+O fluxo, na ordem em que o app tenta:
+
+1. **QR Code da NFC-e** (jsQR): o app lê o código na foto, extrai o link da SEFAZ e a **chave de acesso** (44 dígitos).
+2. **Consulta à página pública da SEFAZ** pela function serverless `/api/nfce`, com **allowlist de hosts** (domínios `sefaz.*.gov.br` e afins) para evitar SSRF: rejeita IP direto, porta fora do padrão e redirecionamento para host não permitido. São Paulo tem parser específico; outros UFs na allowlist entram sob demanda. Preenche valor a pagar, data/hora, CNPJ, pagamento e itens.
+3. Se a SEFAZ falhar (captcha, fora do ar, UF ainda sem parser), faz **OCR no aparelho** (tesseract.js, com detecção de rotação). Se ainda faltar total ou data e a variável `OCR_SPACE_API_KEY` estiver configurada no servidor, tenta o fallback opcional **OCR.space** via `/api/ocr`. Sem essa chave, o app **não** chama OCR.space.
+4. Consulta o CNPJ na **BrasilAPI** (gratuita) para nome, endereço e CNAE, com cache local. Sem internet ou se a API falhar, esses campos ficam para preencher na revisão.
+5. **Sugere a categoria** e abre a **tela de revisão**. Nada é lançado automaticamente: a pessoa confere e só então salva. Dá para marcar como **parcelado** (2 a 48 parcelas).
+
+Também há leitores de comprovantes comuns (Pix, TED, boleto, recarga, débito, Stone, Pix C6). NF-e em papel A4 (DANFE) e cupons SAT antigos entram só pelo OCR. Sempre há revisão antes de salvar.
+
+## Segurança
+
+### Biometria (trava neste aparelho)
+
+Em *Ajustes → Segurança* existe a opção **Entrar com biometria** (“digital ou rosto deste aparelho para abrir o app”). Só aparece se o navegador estiver em contexto seguro (HTTPS) e oferecer autenticador de plataforma (WebAuthn / `PublicKeyCredential`).
+
+Como funciona, de acordo com o código:
+
+- Ao ativar, o app **cadastra uma credencial WebAuthn neste aparelho** (`navigator.credentials.create`, autenticador de plataforma, verificação do usuário obrigatória) e guarda o identificador da credencial no `localStorage`. Não é login sem senha na nuvem e não sincroniza a chave entre aparelhos: é uma **trava local**.
+- A sessão do Supabase **continua no aparelho**. A biometria só **libera a tela**.
+- Ao **abrir o app** ou **voltar depois de 2 minutos** em segundo plano, se a biometria estiver ligada, aparece a tela de bloqueio. O botão *Desbloquear com biometria* pede digital ou rosto; também dá para *Entrar com senha*.
+- Se a biometria passar mas a sessão no servidor tiver expirado, o app pede a **senha uma vez**; depois a biometria volta a valer.
+- Se a biometria **não** estiver ligada, ao abrir o app (ou voltar depois de 2 minutos fora) a sessão **neste aparelho** é encerrada e é preciso entrar de novo com e-mail e senha. Alterações ainda não enviadas ficam guardadas e sobem no próximo login.
+- Links de recuperação de senha ou retorno de login não pedem a biometria de novo nessa abertura.
+
+### Banco e fotos (modo família / empresa)
+
+As regras ficam **no Postgres** (Row Level Security): só quem é membro do perfil lê os dados daquele perfil. Fotos de notas vão para o bucket privado `notas` (pasta = id do perfil); membro envia e vê as do perfil, e só o dono ou um administrador atualiza/apaga o arquivo.
+
+## Importação, exportação e orçamento
+
+- **Planilha:** CSV ou Excel (`.xlsx`). A pessoa escolhe as colunas (data, descrição, valor, categoria), confere a prévia e confirma. Reconhece `1.234,56`, `-50,00`, `(12,30)`, datas `dd/mm/aaaa` e datas do Excel. Linhas que parecem repetidas vêm desmarcadas. Há arquivos de exemplo em [`exemplos/`](exemplos) (dados fictícios).
+- **Backup JSON:** baixar e restaurar, inclusive fotos. Restaurar como **membro** pode recusar itens que só o administrador cria (categorias e contas).
+- **Orçamento:** limite mensal por categoria (só o administrador altera no modo nuvem). Barras de progresso; alerta no Início e na tela de orçamento ao chegar a **80%** e ao **estourar**.
+- **Parcelas:** no lançamento e na revisão da nota, o valor pode ser dividido em 2 a 48 parcelas mensais.
+
+## Arquitetura
+
+```mermaid
+flowchart TB
+  subgraph aparelho [App no aparelho]
+    UI[Interface React / PWA]
+    IDB[IndexedDB via Dexie]
+    Fila[Fila de alterações]
+  end
+  subgraph vercel [Vercel]
+    NFCE["/api/nfce — consulta SEFAZ"]
+    OCR["/api/ocr — OCR.space opcional"]
+  end
+  subgraph nuvem [Supabase — modo família ou empresa]
+    Auth[Auth]
+    PG[Postgres com RLS]
+    ST[Storage privado — bucket notas]
+  end
+  UI --> IDB
+  IDB --> Fila
+  Fila -->|upsert quando online| PG
+  Fila -->|fotos| ST
+  UI --> Auth
+  UI --> NFCE
+  UI -.->|só se houver chave no servidor| OCR
+  UI -->|CNPJ| BrasilAPI
+```
+
+No modo local, Auth, Postgres e Storage não entram no caminho: tudo permanece no IndexedDB.
+
+## Stack
+
+React 19, TypeScript, Vite, Tailwind CSS, Dexie (IndexedDB), Supabase (Auth, Postgres com RLS, Storage), Recharts, SheetJS (`xlsx`), tesseract.js, jsQR, vite-plugin-pwa, Vercel Functions (`/api/nfce`, `/api/ocr`) e BrasilAPI (CNPJ). Testes com o runner `tsx --test` (não é Vitest), scripts e2e em Puppeteer e SQL de RLS.
+
+## Como rodar
 
 Precisa do [Node.js](https://nodejs.org) 20 ou superior.
 
 ```bash
-cp .env.example .env   # opcional: preencha para ativar o modo família
+cp .env.example .env   # opcional: preencha para ativar o modo família / empresa
 npm install
-npm run dev        # abre em http://localhost:5173
-npm run build      # gera a versão final em dist/
+npm run dev        # http://localhost:5173
+npm run build      # gera dist/
 npm run preview    # serve a versão final em http://localhost:4173
-npm test           # testes do leitor de notas e comprovantes
+npm test           # leitor de notas e comprovantes
 ```
 
-Arquivos de exemplo estão em [`exemplos/`](exemplos): `extrato-exemplo.csv`, `nota-exemplo.jpg` (com QR Code) e `nota-sem-qrcode.jpg`. São dados **fictícios**.
+Sem `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`, o app sobe só no **modo local**.
 
-Para gerar de novo as imagens de exemplo: `python3 exemplos/gerar.py` (precisa de Pillow e qrcode).
+### Instalar no celular
 
-## Como instalar no celular
-
-Primeiro publique o app (veja *Vercel* abaixo) e abra o link no celular:
+Publique o app (veja *Vercel* abaixo) e abra o link no aparelho:
 
 - **Android (Chrome):** menu ⋮ → **Instalar app** (ou "Adicionar à tela inicial").
-- **iPhone (Safari):** botão Compartilhar → **Adicionar à Tela de Início**.
+- **iPhone (Safari):** Compartilhar → **Adicionar à Tela de Início**.
 
-O ícone aparece como um app normal e funciona sem internet. A internet só é usada na primeira leitura de nota (para baixar o leitor de texto, ~2 MB) e na consulta do CNPJ.
+### Modo família ou empresa (Supabase), uma vez só
 
-> Cada aparelho, no modo local, tem seus próprios dados. Para usar no celular e no computador com os mesmos dados, use *Ajustes → Baixar backup* em um e *Restaurar backup* no outro — ou ative o modo família.
+1. Crie um projeto em [supabase.com](https://supabase.com) (região **South America (São Paulo)** é uma boa escolha). Guarde a senha do banco.
+2. **SQL Editor:** rode, **na ordem**, todos os arquivos de [`supabase/migrations/`](supabase/migrations). Pode rodar de novo.
+3. **Project Settings → API:** copie a **Project URL** e a chave **anon** / publishable (`eyJ…` ou `sb_publishable_…`). **Nunca** coloque a `service_role` no app.
+4. No computador, preencha o `.env`. Na **Vercel:** *Settings → Environment Variables* com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`, depois *Redeploy*.
+5. **Authentication → URL Configuration:** *Site URL* = endereço do app; em *Redirect URLs*, o mesmo endereço com `/**` (e `http://localhost:5173/**` para desenvolvimento). Assim os links de confirmação e de recuperar senha voltam para o app.
+6. **Confirmação de e-mail:** o padrão do Supabase exige clicar no e-mail. Num grupo pequeno, pode desligar em *Authentication → Providers → Email*. O e-mail grátis tem limite por hora; para muitos cadastros, configure um SMTP próprio.
+7. Abra o app, crie a conta, crie o perfil (família ou empresa) e convide as outras pessoas.
 
-## Modo família (Supabase)
+### Vercel
 
-| Entrar | Recuperar senha |
-|---|---|
-| ![Login](screenshots/familia-login.png) | ![Recuperar senha](screenshots/familia-recuperar-senha.png) |
+1. [vercel.com](https://vercel.com) → *Add New → Project* → importe este repositório. A Vercel detecta **Vite** (`npm run build`, pasta `dist`).
+2. Para o modo nuvem, cadastre as variáveis do passo 4 acima.
+3. A function `/api/nfce` **não precisa de chave**: consulta portais públicos da SEFAZ (allowlist `.gov.br`).
+4. **OCR.space é opcional** e vem desligado. Só ative se quiser um reforço quando o Tesseract falhar: chave free em [ocr.space/ocrapi](https://ocr.space/ocrapi), variável `OCR_SPACE_API_KEY` (sem prefixo `VITE_`) e Redeploy. Sem ela, o caminho continua SEFAZ + Tesseract no aparelho.
 
-### Como funciona
+A cada `git push` o site atualiza. Em hospedagem só-estática (GitHub Pages etc.) as rotas `/api/*` não existem — o app cai no OCR local.
 
-- Quem **cria o perfil** (família ou empresa) vira **administrador**. Em **Família** ele vê o **código de convite** (ou toca em **Enviar link**) e manda pelo WhatsApp.
-- Quem recebe abre o link, **cria a conta** e entra direto como **membro**.
-- **Administrador:** vê e edita tudo, edita categorias, contas e orçamento, gera novo código, promove/rebaixa e remove pessoas, renomeia o perfil.
-- **Membro:** vê tudo do perfil, cria lançamentos, e só altera ou apaga **os próprios**.
-- Na tela inicial e em Lançamentos há o filtro **Família toda / pessoa…**, e o cartão **"Quem gastou no mês"**.
-- Se a pessoa já usava o app no aparelho (modo local), no 1º login o app pergunta se quer **enviar esses dados para o perfil**.
-- Sem internet tudo continua funcionando. O canto da tela mostra *"Tudo salvo na nuvem"* ou quantas alterações estão esperando.
-- As regras de segurança ficam **no banco** (Row Level Security): ninguém de outro perfil consegue ler nada, nem fotos de notas (bucket privado).
+## Testes
 
-### Passo a passo (uma vez só, ~10 minutos)
+```bash
+npm test                 # tests/*.test.ts — comprovantes e parser de NFC-e (tsx --test)
+```
 
-1. Crie uma conta em [supabase.com](https://supabase.com) → **New project**. Escolha um nome, uma senha do banco (guarde) e a região **South America (São Paulo)**.
-2. No projeto, abra **SQL Editor → New query** e rode, **na ordem**, todos os arquivos de [`supabase/migrations/`](supabase/migrations). Deve aparecer *Success*. (Pode rodar de novo sem problema.)
-3. Abra **Project Settings → API** (ou *Data API*) e copie:
-   - **Project URL** (ex.: `https://SEU-PROJETO.supabase.co`)
-   - **anon public key** (chave longa que começa com `eyJ…`, ou a *publishable key* `sb_publishable_…`). **Nunca** use a `service_role`/secret key no app.
-4. Na **Vercel:** projeto → **Settings → Environment Variables** e crie:
-   - `VITE_SUPABASE_URL` = Project URL
-   - `VITE_SUPABASE_ANON_KEY` = anon key
-   Depois vá em **Deployments → ⋯ → Redeploy**. (No computador, copie `.env.example` para `.env` e preencha. O `.env` não vai para o GitHub.)
-5. No Supabase, **Authentication → URL Configuration**:
-   - **Site URL:** o endereço do app (ex.: `https://seu-app.vercel.app`)
-   - **Redirect URLs:** adicione `https://seu-app.vercel.app/**` (e `http://localhost:5173/**` se for usar no computador).
-   Isso faz o link de **recuperar senha** e de **confirmação de e-mail** voltarem para o app.
-6. **Confirmação de e-mail:** por padrão o Supabase exige que a pessoa clique no e-mail antes de entrar. Para um grupo pequeno pode ser mais prático desligar em **Authentication → Sign In / Providers → Email → Confirm email**. O e-mail grátis do Supabase tem limite baixo por hora; para muitos cadastros configure um SMTP próprio.
-7. Abra o app, crie sua conta, crie o perfil (família ou empresa) e convide as outras pessoas.
-
-### Testes (para desenvolvedores)
-
-Há um "Supabase de teste" que roda sem Docker (Postgres 15+, [GoTrue](https://github.com/supabase/auth) e [PostgREST](https://postgrest.org) instalados localmente; o Storage é emulado por `scripts/supabase-local.mjs`):
+Há um ambiente de Supabase de teste **sem Docker** (Postgres 15+, GoTrue e PostgREST locais; Storage emulado por `scripts/supabase-local.mjs`):
 
 ```bash
 # aplique as migrações no banco de teste, na ordem de supabase/migrations/
-psql -f supabase/tests/rls_test.sql                       # verificações de RLS
-npm run supabase:local                                    # gateway em :54321 (auth/rest/storage)
+psql -f supabase/tests/rls_test.sql
+npm run supabase:local
 VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=$(node scripts/supabase-local.mjs --anon) npm run test:api
-VITE_SUPABASE_URL=… VITE_SUPABASE_ANON_KEY=… npm run build && npx vite preview --port 4174 &
-npm run test:e2e-familia                                  # navegador: 2 pessoas, convite, migração, permissões
+npm run build && npx vite preview --port 4174 &
+npm run test:e2e-familia    # duas pessoas, convite, migração e permissões
 ```
 
-Também dá para rodar `supabase/tests/rls_test.sql` no SQL Editor de um projeto de **teste** (ele faz tudo dentro de uma transação e desfaz no final).
-
-## Como publicar na Vercel
-
-1. Entre em [vercel.com](https://vercel.com) → **Add New → Project** → importe este repositório do GitHub.
-2. A Vercel detecta **Vite** sozinha (Build: `npm run build`, Output: `dist`). Clique em **Deploy**.
-3. Para o modo família, configure também as variáveis do passo 4 em [Modo família](#modo-família-supabase).
-4. A function `/api/nfce` **não precisa de chave**: consulta portais públicos da SEFAZ (allowlist `.gov.br`). Este é o caminho principal junto com o Tesseract no aparelho.
-5. **(Opcional) OCR.space** — desligado por padrão. Só ative se quiser um reforço quando o Tesseract falhar:
-   - Crie uma chave free em [ocr.space/ocrapi](https://ocr.space/ocrapi) (sem cartão).
-   - Em **Project → Settings → Environment Variables**, adicione `OCR_SPACE_API_KEY` (Production + Preview) e faça **Redeploy**.
-   - **Sem essa variável o app não chama OCR.space** (continua SEFAZ + Tesseract).
-   - Limites do plano free (docs/fórum OCR.space): **~1 MB/arquivo**, **~25.000 req/mês**, **~180 req/hora**; usamos `language=por`, `OCREngine=2` e imagem comprimida no servidor.
-
-A cada `git push` o site é atualizado. Em hosts só-estáticos (GitHub Pages etc.) as routes `/api/*` não existem — o app cai no OCR local.
-
-## Tecnologias
-
-React 19 + TypeScript + Vite · Tailwind CSS · Dexie (IndexedDB) · Supabase (Auth, Postgres com RLS, Storage) · Recharts · SheetJS (xlsx) · tesseract.js (OCR) · jsQR · vite-plugin-pwa · Vercel Functions (`/api/nfce`, `/api/ocr`) · BrasilAPI (CNPJ).
+Também dá para rodar `supabase/tests/rls_test.sql` no SQL Editor de um projeto de **teste** (ele executa dentro de uma transação e desfaz no final).
 
 ## Limitações
 
-- **OCR não é perfeito.** Em fotos tremidas, tortas ou escuras o texto pode sair com erros. Por isso **sempre há tela de revisão**. Com QR legível, a **consulta SEFAZ** (`/api/nfce`) costuma ser a fonte mais confiável (valor líquido, data/hora, itens).
-- O QR "online" da NFC-e **não embute** total/data no próprio código; o app usa o link para buscar a página pública da SEFAZ (SP suportado; outros UFs na allowlist, parsers sob demanda).
-- NF-e em papel A4 (DANFE) e cupons SAT antigos funcionam só via OCR.
-- A consulta de CNPJ precisa de internet e depende da disponibilidade da BrasilAPI. Sem ela, os dados vêm só do OCR.
-- Modo local: dados ficam no navegador; limpar os dados do site apaga tudo. **Faça backups.**
-- Modo família: se duas pessoas editarem **o mesmo** lançamento offline, vale a última que sincronizar. Lançamentos apagados ficam marcados como excluídos no banco (não somem fisicamente).
-- Sair da conta apaga a cópia local do aparelho (os dados continuam na nuvem). Se houver alterações ainda não enviadas, o app avisa antes.
-- Restaurar um backup como **membro** pode recusar itens que só o administrador pode criar (categorias/contas).
-- O código de convite tem 8 caracteres; gere um **novo código** se ele vazar (o antigo para de valer).
+- **OCR não é perfeito.** Foto tremida, torta ou escura pode sair com erro — por isso sempre há tela de revisão. Com QR legível, a consulta SEFAZ costuma ser a fonte mais confiável.
+- O QR “online” da NFC-e **não embute** total e data no próprio código; o app usa o link para buscar a página pública. SP tem parser pronto; outros UFs dependem da allowlist e de parser.
+- A consulta de CNPJ depende da BrasilAPI e de internet.
+- Biometria é **por aparelho** e precisa de HTTPS e de um navegador com autenticador de plataforma. Não substitui a conta no Supabase e não acompanha a pessoa em outro dispositivo.
+- Modo local: os dados moram no navegador.
+- Sincronização: última gravação na nuvem vence quando duas pessoas editam o mesmo item offline.
 
 ## Licença
 
