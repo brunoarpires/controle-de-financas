@@ -16,7 +16,7 @@ function paraServidor(t: Tabela, r: any, familia_id: string): any {
       parcela_grupo_id: r.parcelaGrupoId ?? null, parcela_numero: r.parcelaNumero ?? null, parcela_total: r.parcelaTotal ?? null,
       criado_em: new Date(r.criadoEm ?? Date.now()).toISOString(), excluido: false }
     case 'categorias': return { id: r.id, familia_id, nome: r.nome, icone: r.icone, cor: r.cor, tipo: r.tipo, excluido: false }
-    case 'contas': return { id: r.id, familia_id, nome: r.nome, tipo: r.tipo, icone: r.icone, excluido: false }
+    case 'contas': return { id: r.id, familia_id, nome: r.nome, tipo: r.tipo, icone: r.icone, titular_id: r.tipo === 'vr_ticket' ? (r.titularId ?? null) : null, excluido: false }
     case 'orcamentos': return { familia_id, categoria_id: r.categoriaId, limite: r.limite, excluido: false }
     case 'regras': return { familia_id, palavra: r.palavra, categoria_id: r.categoriaId, peso: r.peso, excluido: false }
   }
@@ -27,7 +27,7 @@ function deServidor(t: Tabela, r: any): any {
       userId: r.user_id, observacao: r.observacao ?? undefined, hora: r.hora ? String(r.hora).slice(0, 5) : undefined, fotoPath: r.foto_path ?? undefined, nota: r.nota ?? undefined, criadoEm: Date.parse(r.criado_em),
       parcelaGrupoId: r.parcela_grupo_id ?? undefined, parcelaNumero: r.parcela_numero ?? undefined, parcelaTotal: r.parcela_total ?? undefined }
     case 'categorias': return { id: r.id, nome: r.nome, icone: r.icone, cor: r.cor, tipo: r.tipo }
-    case 'contas': return { id: r.id, nome: r.nome, tipo: r.tipo, icone: r.icone }
+    case 'contas': return { id: r.id, nome: r.nome, tipo: r.tipo, icone: r.icone, titularId: r.titular_id ?? undefined }
     case 'orcamentos': return { categoriaId: r.categoria_id, limite: Number(r.limite) }
     case 'regras': return { palavra: r.palavra, categoriaId: r.categoria_id, peso: r.peso }
   }

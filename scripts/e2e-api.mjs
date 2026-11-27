@@ -24,7 +24,7 @@ const { error: e2 } = await ana.c.rpc('entrar_familia', { p_codigo: 'ERRADO00', 
 const { error: e3 } = await ana.c.rpc('entrar_familia', { p_codigo: fam.codigo_convite.toLowerCase(), p_meu_nome: 'Ana' }); ok(!e3, 'Ana entra com o código (minúsculas aceitas)')
 const { data: ms } = await ana.c.from('membros').select('*'); ok(ms.length === 2 && ms.find((m) => m.user_id === ana.id).papel === 'membro', 'Ana vê 2 membros e é "membro"')
 const { data: cats } = await ana.c.from('categorias').select('*').eq('tipo', 'despesa'); ok(cats.length === 10, 'categorias padrão criadas (10 de despesa)')
-const { data: contas } = await alex.c.from('contas').select('*'); ok(contas.length === 3, '3 contas padrão')
+const { data: contas } = await alex.c.from('contas').select('*'); ok(contas.length === 4, '4 contas padrão (inclui Pix)')
 console.log('Lançamentos')
 const idA = crypto.randomUUID(), idB = crypto.randomUUID()
 const lanc = (id, desc, v) => ({ id, familia_id: fam.id, tipo: 'despesa', valor: v, data: '2026-10-20', descricao: desc, categoria_id: cats[0].id, conta_id: contas[0].id })

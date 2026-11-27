@@ -29,7 +29,7 @@ create temp table ids (k text primary key, v text); grant all on ids to authenti
 select pg_temp.como('00000000-0000-0000-0000-00000000000a', 'alex@teste.com');
 insert into ids select 'fam', (public.criar_familia('Família Silva', 'Alex')).id;
 select pg_temp.ok((select papel from membros where user_id = auth.uid()) = 'administrador', 'criador vira administrador');
-select pg_temp.ok((select count(*) from categorias) = 13 and (select count(*) from contas) = 3, 'categorias e contas padrão criadas');
+select pg_temp.ok((select count(*) from categorias) = 14 and (select count(*) from contas) = 4, 'categorias e contas padrão criadas');
 insert into ids select 'codigo', codigo_convite from familias;
 insert into ids select 'cat', id from categorias where nome = 'Mercado';
 insert into ids select 'conta', id from contas limit 1;

@@ -20,10 +20,11 @@ Mais telas em [`docs/screenshots/`](docs/screenshots) e em [`screenshots/`](scre
 
 - 🏠 **Início:** saldo do mês, receitas × despesas, gráfico de gastos por categoria, evolução dos últimos 6 meses, alertas de orçamento e últimos lançamentos.
 - 💸 **Lançamentos:** botões de *− Despesa* e *+ Receita*, edição e exclusão, filtro por mês, categoria e tipo, busca por texto, foto do comprovante e parcelas (até 48).
-- 📂 **Categorias e contas:** ícone (emoji) e cor editáveis; contas e cartões.
+- 📂 **Categorias e contas:** ícone (emoji) e cor editáveis; contas, cartões e formas de pagamento (**Pix** e **VR - Ticket**).
+- 🎫 **VR - Ticket:** cada ticket tem um titular (integrante do perfil) que identifica de quem é o saldo. Qualquer integrante pode lançar crédito (receita) ou gasto (despesa) no ticket de qualquer pessoa. O painel mostra o saldo de cada ticket; no lançamento aparece quem registrou e de quem é o ticket.
 - 📊 **Orçamento** mensal por categoria, com barras de progresso e alerta ao chegar a 80% e ao estourar.
 - 📥 **Importar planilha** (CSV ou Excel `.xlsx`) e **backup** em JSON (com fotos).
-- 🧾 **Leitura de nota fiscal** (NFC-e): QR Code, consulta à página pública da SEFAZ, OCR no aparelho e tela de revisão antes de salvar. Também interpreta comprovantes comuns (Pix, TED, boleto, recarga, débito, maquininhas Stone/C6).
+- 🧾 **Leitura de nota fiscal** (NFC-e): QR Code, consulta à página pública da SEFAZ, OCR no aparelho e tela de revisão antes de salvar. Também interpreta comprovantes comuns (Pix, inclusive o layout *Comprovante do Pix* / Pix Cobrança, TED, boleto, recarga, débito, maquininhas Stone/C6) e sugere a forma de pagamento (Pix, cartão, dinheiro).
 - 🏷️ **Categoria automática:** sugere pela descrição (palavras-chave) e aprende com as correções.
 - 👨‍👩‍👧 **Modo família** e 🏢 **modo empresa:** contas próprias, perfil compartilhado, convite, papéis de administrador e membro (detalhes abaixo).
 - 📴 **Modo local:** funciona só no aparelho, sem conta e sem configurar nuvem.
@@ -98,7 +99,7 @@ O fluxo, na ordem em que o app tenta:
 4. Consulta o CNPJ na **BrasilAPI** (gratuita) para nome, endereço e CNAE, com cache local. Sem internet ou se a API falhar, esses campos ficam para preencher na revisão.
 5. **Sugere a categoria** e abre a **tela de revisão**. Nada é lançado automaticamente: a pessoa confere e só então salva. Dá para marcar como **parcelado** (2 a 48 parcelas).
 
-Também há leitores de comprovantes comuns (Pix, TED, boleto, recarga, débito, Stone, Pix C6). NF-e em papel A4 (DANFE) e cupons SAT antigos entram só pelo OCR. Sempre há revisão antes de salvar.
+Também há leitores de comprovantes comuns (Pix, TED, boleto, recarga, débito, Stone, Pix C6). No layout **Comprovante do Pix** (Pix Cobrança: *Valor pago*, *Para*), o app usa o valor pago e o recebedor, e ignora *Valor original* e *Vencimento*. Ao importar, sugere a forma de pagamento correspondente (Pix, cartão ou dinheiro). NF-e em papel A4 (DANFE) e cupons SAT antigos entram só pelo OCR. Sempre há revisão antes de salvar.
 
 ## Segurança
 
@@ -125,6 +126,32 @@ As regras ficam **no Postgres** (Row Level Security): só quem é membro do perf
 - **Backup JSON:** baixar e restaurar, inclusive fotos. Restaurar como **membro** pode recusar itens que só o administrador cria (categorias e contas).
 - **Orçamento:** limite mensal por categoria (só o administrador altera no modo nuvem). Barras de progresso; alerta no Início e na tela de orçamento ao chegar a **80%** e ao **estourar**.
 - **Parcelas:** no lançamento e na revisão da nota, o valor pode ser dividido em 2 a 48 parcelas mensais.
+
+
+## VR - Ticket
+
+O **VR - Ticket** é, ao mesmo tempo, uma **categoria de receita** (o crédito que entra no ticket) e uma **forma de pagamento** (o gasto que sai do saldo).
+
+- Um **administrador** cria a conta em *Ajustes → Contas e formas de pagamento → Nova*, escolhe o tipo **VR - Ticket** e indica **de quem é o ticket**. O app **não** cria essas contas automaticamente.
+- **Qualquer integrante** do perfil pode lançar receita ou despesa em **qualquer** ticket, inclusive no de outra pessoa. O titular só identifica de quem é o saldo; não restringe quem pode usar.
+- No lançamento, a lista e o filtro por pessoa separam as duas informações: **quem lançou** e **de quem é o ticket** (por exemplo, “Lançado por Alex · Ticket de Maria”). O filtro inclui o que a pessoa lançou e o que mexeu no ticket dela.
+- Ao registrar uma receita nova no VR, o app sugere a categoria **VR - Ticket** se outra ainda não tiver sido escolhida.
+- No Início aparece o cartão **Saldo VR - Ticket**, com o saldo restante de cada titular (receitas menos despesas daquela conta).
+
+No banco, a coluna `titular_id` só é permitida em contas do tipo `vr_ticket`. As políticas de segurança (RLS) continuam as mesmas: o `user_id` do lançamento é quem registrou.
+
+## Novidades
+
+### v1.1.0 (27/11/2026)
+
+- Forma de pagamento **Pix**, incluída nas contas padrão (novos perfis e modo local) e sugerida ao importar um comprovante Pix.
+- Leitor de comprovante no layout **Comprovante do Pix** (Pix Cobrança): lê *Valor pago* e *Para*, e não usa *Valor original* nem a data de *Vencimento*.
+- **VR - Ticket**, com titular por integrante, uso por qualquer membro do perfil, rótulo “quem lançou / de quem é o ticket” e saldo no painel.
+- Migrações `20261125203000_conta_pix.sql` e `20261126160000_vr_ticket.sql` (adicione-as na ordem, se o projeto Supabase já existia).
+
+### v1.0.0 (22/11/2026)
+
+Versão pública inicial (MIT), já com modo local e família/empresa, leitor de NFC-e e comprovantes Stone/C6, orçamento, importação de planilha e biometria.
 
 ## Arquitetura
 

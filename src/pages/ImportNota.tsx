@@ -8,6 +8,7 @@ import { rotuloComprovante } from '../comprovante'
 import { aprender, sugerirCategoria } from '../categorizar'
 import { CampoData, CampoHora, Titulo } from '../components/ui'
 import { ir } from '../rota'
+import { escolherContaPorPagamento } from '../contaPagamento'
 const resumoComprovante = (c: NonNullable<DadosNota['comprovante']>) => [c.favorecido && `Favorecido: ${c.favorecido}`, c.documento && `Doc: ${c.documento}`, c.instituicao && `Instituição: ${c.instituicao}`, c.telefone && `Telefone: ${c.telefone}`, c.bancoPagador && `Pago via: ${c.bancoPagador}`, c.idTransacao && `ID: ${c.idTransacao}`].filter(Boolean).join(' · ')
 const sem = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
@@ -34,18 +35,9 @@ export default function ImportNota() {
       const r = await analisarNota(f, (msg, p) => setEtapa({ msg, p }))
       r.data ??= hojeISO()
       const comp = r.comprovante
-      if (comp) {
-        if (comp.pagamento === 'credito') {
-          const cartao = contas.find((x) => x.tipo === 'cartao')
-          if (cartao) setContaId(cartao.id)
-        } else {
-          const banco = sem(comp.bancoPagador ?? '').replace(/\b(banco|s\.?a\.?|ip|pagamentos?|instituicao|de|do)\b/g, ' ').split(/\s+/).filter((w) => w.length >= 2)
-          const c = contas.find((x) => x.tipo !== 'dinheiro' && banco.some((w) => sem(x.nome).includes(w))) ?? contas.find((x) => x.tipo === 'conta')
-          if (c) setContaId(c.id)
-        }
-      } else if (r.pagamento) {
-        const tipo = r.pagamento === 'credito' ? 'cartao' : r.pagamento === 'dinheiro' ? 'dinheiro' : 'conta'
-        const c = contas.find((x) => x.tipo === tipo); if (c) setContaId(c.id)
+      if (comp || r.pagamento) {
+        const c = escolherContaPorPagamento(contas, comp?.pagamento ?? r.pagamento, comp?.bancoPagador)
+        if (c) setContaId(c.id)
       }
       setD(r); setValor(r.total ? r.total.toFixed(2).replace('.', ',') : '')
       const catRecarga = comp?.tipo === 'recarga' ? cats.find((c) => /telefon|celular|internet/i.test(sem(c.nome)))?.id : undefined
