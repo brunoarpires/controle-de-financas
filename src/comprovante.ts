@@ -38,6 +38,28 @@ function limparBanco(s: string) {
   return s.replace(/^\d{3}\s*[-–.]?\s*/, '').replace(/\b(banco|s\.?a\.?|s\/a|ip|pagamentos?|instituicao|de|do|bco)\b/gi, ' ').replace(/[().]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+/** Layout "Comprovante do Pix" (Pix Cobrança): Valor pago, Dados do recebedor / Para, Valor original, Vencimento. */
+function ehPixCobranca(tudo: string, N: string[]) {
+  const temValorPago = /valor\s+pago/.test(tudo)
+  const temRecebedor = /dados do recebedor/.test(tudo) || N.some((l) => /^para$/.test(l))
+  const temMarca = /comprovante do pix/.test(tudo) || /informacao para o pagador/.test(tudo)
+  return temValorPago && temRecebedor && temMarca
+}
+
+function ehRotuloCampo(n: string) {
+  const t = n.replace(/[:.\s]+$/g, '').trim()
+  return /^(para|de|nome|cnpj|cpf|cpe|instituicao|banco|agencia|conta|valor(?:\s+(original|pago|a\s+pagar))?|total|vencimento|validade|devedor|recebedor|favorecido|pagador|forma de pagamento|identificacao|informacao|informacoes|dados do|comprovante|id\/?transacao|data e hora|codigo de autenticacao)$/.test(t)
+    || /^(dados do|informacao|informacoes|forma de|identificacao do|codigo de|valor original)\b/.test(t)
+}
+
+function proximoConteudo(L: string[], N: string[], de: number, ate: number) {
+  for (let i = de; i < ate && i < de + 5; i++) {
+    const l = L[i]
+    if (!l || ehRotuloCampo(N[i]) || pareceId(l)) continue
+    if (l.length >= 3) return l
+  }
+}
+
 export function interpretarComprovante(texto: string): DadosComprovante {
   const L = texto.split('\n').map((l) => l.trim()).filter(Boolean)
   const N = L.map(sem)
@@ -54,24 +76,31 @@ export function interpretarComprovante(texto: string): DadosComprovante {
 
   let tipo: TipoComprovante = 'transferencia'
   if (/recarga/.test(tudo)) tipo = 'recarga'
+  else if (ehPixCobranca(tudo, N) || /\bpix\b/.test(tudo) || PIX_STATUS.test(tudo)) tipo = 'pix'
   else if (/boleto|codigo de barras|linha digitavel/.test(tudo)) tipo = 'boleto'
-  else if (/\bpix\b/.test(tudo) || PIX_STATUS.test(tudo)) tipo = 'pix'
   else if (POS.test(tudo) || /compra no credito|cartao de credito/.test(tudo)) tipo = 'credito'
   else if ((/mastercard|visa\b|elo\b|hipercard|amex/.test(tudo) && /via cliente|sitef|stone/.test(tudo))) tipo = 'credito'
   else if (/compra no debito|cartao de debito|\bdebito\b/.test(tudo) && !/conta debitada/.test(tudo)) tipo = 'debito'
 
   const valor = extrairValor(L, N, tudo)
-  const { data, hora } = extrairDataHora(texto, L, tudo, campo)
+  const { data, hora } = extrairDataHora(texto, L, N, tudo, campo)
 
-  const iOrig = secao(/^(conta debitada|conta de origem|dados da origem|origem|quem pagou|pagador|dados do pagador|de)\b/)
+  const iOrig = secao(/^(conta debitada|conta de origem|dados da origem|origem|quem pagou|dados do pagad|de)\b/)
   const iDest = secao(/^(destino|para|recebedor|favorecido|quem recebeu|destinatario|beneficiario|dados do (recebedor|favorecido|beneficiario))\b/)
-  const fimDest = iOrig > iDest && iOrig >= 0 ? iOrig : L.length
+  const iDevedor = secao(/^(devedor)\b/)
+  const iInfoPag = secao(/^informacoes do pagament/)
+  const fimDest = [iOrig, iDevedor, iInfoPag].filter((i) => i > (iDest >= 0 ? iDest : -1)).sort((a, b) => a - b)[0] ?? L.length
   let favorecido = campo(/^(operadora|recebedor|favorecido|beneficiario|destinatario|quem recebeu|para|nome do (recebedor|favorecido|beneficiario)|empresa|cedente)\b/)
-  if (iDest >= 0) favorecido = campo(/^nome\b/, iDest, fimDest) ?? (L[iDest + 1] && !/:/.test(L[iDest + 1]) ? L[iDest + 1] : favorecido)
+  if (favorecido && ehRotuloCampo(sem(favorecido))) favorecido = undefined
+  if (iDest >= 0) {
+    favorecido = campo(/^nome\b/, iDest, fimDest)
+      ?? proximoConteudo(L, N, iDest + 1, fimDest)
+      ?? favorecido
+  }
   if (tipo === 'credito') favorecido = nomeMaquininha(L, N) ?? favorecido
   if (tipo === 'pix') favorecido = nomePixDestino(L, N, iOrig, iDest, favorecido)
 
-  const docRe = /(\*{3}\.?\d{3}\.?\d{3}-?\*{2}|[\d*•]{3}\.[\d*•]{3}\.[\d*•]{3}-[\d*•]{2}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/
+  const docRe = /(\*{3}\.?\d{3}\.?\d{3}-?\*{2}|[\d*•]{3}\.[\d*•]{3}\.[\d*•]{3}-[\d*•]{2}|\d{2}[.\s]*[*•\d]{2,4}[.\s]*[*•\d]*\s*\/\s*\d{4}\s*-\s*[*•\d]{1,2})/
   const trechoDest = (iDest >= 0 ? L.slice(iDest, fimDest) : L.filter((_, i) => iOrig < 0 || i < iOrig)).join('\n')
   const documento = trechoDest.match(docRe)?.[1]
   let instituicao = iDest >= 0 ? campo(/^(instituicao|banco)\b/, iDest, fimDest) : undefined
@@ -126,8 +155,8 @@ function extrairValor(L: string[], N: string[], tudo: string): number | undefine
     let prio = 0
     if (/valor\s+a\s+pagar|valor\s+pago|total\s+a\s+pagar/.test(n)) prio = 100
     else if (/^valor\s*:/.test(n) || /\bvalor\s*:\s*\d/.test(n)) prio = 90
-    else if (/^(valor(?!\s+original)|total)\b/.test(n)) prio = 70
-    else if (/^valor original\b/.test(n)) prio = 50
+    else if (/^valor original\b/.test(n)) continue // nunca usar "Valor original" (pode ser 0,00 ou valor de boleto)
+    else if (/^(valor|total)\b/.test(n)) prio = 70
     else continue
     const resto = L[i].replace(/^(valor(\s+(original|a\s+pagar|pago))?|total(\s+a\s+pagar)?)\b/i, '').replace(/^[\s:.-]+/, '').trim()
     for (const cand of [resto, L[i + 1], L[i + 2]]) {
@@ -151,7 +180,7 @@ function extrairValor(L: string[], N: string[], tudo: string): number | undefine
   return undefined
 }
 
-function extrairDataHora(texto: string, L: string[], tudo: string, campo: (re: RegExp, de?: number, ate?: number) => string | undefined) {
+function extrairDataHora(texto: string, L: string[], N: string[], tudo: string, campo: (re: RegExp, de?: number, ate?: number) => string | undefined) {
   let data: string | undefined, hora: string | undefined
   const aplicar = (s?: string) => {
     if (!s) return
@@ -163,16 +192,28 @@ function extrairDataHora(texto: string, L: string[], tudo: string, campo: (re: R
   }
   aplicar(campo(/^(data( e hora)?( da transacao| do pagamento| da compra| da autorizacao)?|autorizacao)\b/))
   const datas: string[] = []
-  for (const l of L) {
+  const datasComHora: string[] = []
+  for (let i = 0; i < L.length; i++) {
+    const l = L[i]
+    const n = N[i] ?? sem(l)
+    const prev = i > 0 ? (N[i - 1] ?? sem(L[i - 1])) : ''
     if (/\d{2}\.\d{3}\.\d{3}\/\d{4}/.test(l) || /cnpj|stoneid|aut\s*:/i.test(l)) continue
+    if (/^vencimento\b/.test(n) || /^vencimento\b/.test(prev) || /validade apos/.test(n)) continue
     for (const m of l.matchAll(/(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})(?:\s*[-–T]?\s*([01]?\d|2[0-3])[:h.]([0-5]\d))?/g)) {
-      const iso = parseDataBR(`${m[1]}/${m[2]}/${m[3]}`); if (iso) datas.push(iso)
-      if (m[4] && !hora) hora = `${m[4].padStart(2, '0')}:${m[5]}`
+      const iso = parseDataBR(`${m[1]}/${m[2]}/${m[3]}`); if (!iso) continue
+      datas.push(iso)
+      if (m[4]) {
+        datasComHora.push(iso)
+        if (!hora) hora = `${m[4].padStart(2, '0')}:${m[5]}`
+      }
     }
   }
-  if (!data && datas.length) {
-    const uniq = [...new Set(datas)]
-    data = uniq.length === 1 ? uniq[0] : datas[0]
+  if (!data) {
+    const pref = datasComHora.length ? datasComHora : datas
+    if (pref.length) {
+      const uniq = [...new Set(pref)]
+      data = uniq.length === 1 ? uniq[0] : pref[0]
+    }
   }
   if (!data) {
     const md = tudo.match(/(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})(?:\D{0,12}?(\d{2})\s*[:h.]\s*(\d{2}))?/)
@@ -189,7 +230,7 @@ function extrairDataHora(texto: string, L: string[], tudo: string, campo: (re: R
   return { data, hora }
 }
 
-const PULAR_NOME = /^(c6\s?bank|nubank|itau|bradesco|banco|pix|em andamento|andamento|realizado|codigo|autenticacao|autensacao|id da transacao|in da transacao|chave|cpf|cnpj|valor|data|identificacao|agencia|conta|comprovante|extrato|master\s?card|visa\b|elo\b|hipercard|stone|via cliente|sitef|fiserv|autorizacao|caixa|lancamento|total|credito|debito|onl|nfc|si\s*tef|hora|sexta|sabado|domingo|segunda|terca|quarta|quinta)/
+const PULAR_NOME = /^(c6\s?bank|nubank|itau|bradesco|banco|pix|em andamento|andamento|realizado|codigo|autenticacao|autensacao|id da transacao|in da transacao|chave|cpf|cpe|cnpj|valor|data|identificacao|agencia|conta|comprovante|extrato|master\s?card|visa\b|elo\b|hipercard|stone|via cliente|sitef|fiserv|autorizacao|caixa|lancamento|total|credito|debito|onl|nfc|si\s*tef|hora|sexta|sabado|domingo|segunda|terca|quarta|quinta|para$|de$|devedor|dados do|informacao|forma de pagamento)/
 
 function pareceId(l: string) {
   const s = l.replace(/\s/g, '')
@@ -197,6 +238,7 @@ function pareceId(l: string) {
 }
 
 function nomePixDestino(L: string[], N: string[], iOrig: number, iDest: number, atual?: string): string | undefined {
+  if (atual && ehRotuloCampo(sem(atual))) atual = undefined
   if (iDest >= 0 && atual && atual.length >= 3 && !PULAR_NOME.test(sem(atual))) return atual
   const fim = iOrig >= 0 ? iOrig : L.length
   const nomesAntesBanco = (ate: number) => {

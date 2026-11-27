@@ -6,7 +6,8 @@ import { modoNuvem } from '../supabase'
 import { useSessao, sair } from '../sessao'
 import { ir } from '../rota'
 import { db, uuid, salvar, excluir, exportarBackup, importarBackup, type Categoria, type Conta } from '../db'
-import { useCategorias, useContas } from '../hooks'
+import { useCategorias, useContas, useMembros } from '../hooks'
+import { rotuloContaComIcone, TIPO_VR } from '../vrTicket'
 import { baixar, hojeISO } from '../utils'
 import { aplicarTema, temaAtual, type Tema } from '../tema'
 import { Modal, Titulo } from '../components/ui'
@@ -15,6 +16,8 @@ const CORES = ['#16a34a', '#f97316', '#0ea5e9', '#8b5cf6', '#eab308', '#ef4444',
 export default function Ajustes() {
   const ses = useSessao(), adm = !modoNuvem || ses.admin
   const cats = useCategorias(), contas = useContas()
+  const membros = useMembros()
+  const listaMembros = [...membros.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   const [tema, setTema] = useState<Tema>(temaAtual())
   const [cat, setCat] = useState<Partial<Categoria> | null>(null)
   const [conta, setConta] = useState<Partial<Conta> | null>(null)
@@ -26,7 +29,14 @@ export default function Ajustes() {
     if (usos) return alert(`Essa categoria tem ${usos} lançamento(s). Mude a categoria deles antes de excluir.`)
     if (confirm('Excluir categoria?')) { await excluir('categorias', cat!.id!); if (await db.orcamentos.get(cat!.id!)) await excluir('orcamentos', cat!.id!); setCat(null) }
   }
-  async function salvarConta() { if (!conta?.nome) return; await salvar('contas', { id: uuid(), icone: '🏦', tipo: 'conta', ...conta } as Conta); setConta(null) }
+  async function salvarConta() {
+    if (!conta?.nome) return
+    if (conta.tipo === TIPO_VR && listaMembros.length && !conta.titularId) return alert('Escolha de quem é este VR - Ticket.')
+    const row: Conta = { id: uuid(), icone: '🏦', tipo: 'conta', ...conta, nome: conta.nome.trim() }
+    if (row.tipo !== TIPO_VR) delete row.titularId
+    await salvar('contas', row)
+    setConta(null)
+  }
   async function excluirConta() {
     if (await db.transacoes.where('contaId').equals(conta!.id!).count()) return alert('Essa conta tem lançamentos e não pode ser excluída.')
     if (confirm('Excluir conta?')) { await excluir('contas', conta!.id!); setConta(null) }
@@ -44,8 +54,8 @@ export default function Ajustes() {
         {(['despesa', 'receita'] as const).map((t) => <div key={t} className="mb-3"><div className="text-xs uppercase font-semibold text-slate-500 mb-2">{t === 'despesa' ? 'Despesas' : 'Receitas'}</div>
           <div className="flex flex-wrap gap-2">{cats.filter((c) => c.tipo === t).map((c) => <button key={c.id} onClick={() => adm && setCat(c)} className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 text-sm border border-slate-200 dark:border-slate-700"><span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: c.cor + '33' }}>{c.icone}</span>{c.nome}</button>)}</div></div>)}
       </div>
-      <div className="card"><div className="flex justify-between items-center mb-3"><h2 className="font-bold">Contas e cartões</h2>{adm && <button className="btn-ghost text-sm py-1.5" onClick={() => setConta({ tipo: 'conta', icone: '🏦' })}><Plus size={16} />Nova</button>}</div>
-        <div className="flex flex-wrap gap-2">{contas.map((c) => <button key={c.id} onClick={() => adm && setConta(c)} className="rounded-full px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700">{c.icone} {c.nome}</button>)}</div></div>
+      <div className="card"><div className="flex justify-between items-center mb-3"><h2 className="font-bold">Contas e formas de pagamento</h2>{adm && <button className="btn-ghost text-sm py-1.5" onClick={() => setConta({ tipo: 'conta', icone: '🏦' })}><Plus size={16} />Nova</button>}</div>
+        <div className="flex flex-wrap gap-2">{contas.map((c) => <button key={c.id} onClick={() => adm && setConta(c)} className="rounded-full px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700">{rotuloContaComIcone(c, membros)}</button>)}</div></div>
       <div className="card"><h2 className="font-bold mb-1">Backup dos dados</h2>
         <p className="text-sm text-slate-500 mb-3">{modoNuvem ? <>Os {n} lançamentos deste perfil ficam salvos na nuvem e neste aparelho. Você pode baixar uma cópia em arquivo quando quiser; restaurar um backup <b>adiciona</b> os dados dele à família.</> : <>Seus {n} lançamentos ficam salvos <b>só neste aparelho</b>. Faça backup com frequência e use o arquivo para passar os dados para outro celular ou computador.</>}</p>
         <div className="flex flex-wrap gap-2">
@@ -61,8 +71,25 @@ export default function Ajustes() {
       </Modal>}
       {conta && <Modal titulo={conta.id ? 'Editar conta' : 'Nova conta'} onFechar={() => setConta(null)}>
         <label className="label">Nome</label><input className="input mb-3" value={conta.nome ?? ''} onChange={(e) => setConta({ ...conta, nome: e.target.value })} placeholder="Ex.: Nubank, Itaú, Carteira" />
-        <div className="grid grid-cols-2 gap-3 mb-5"><div><label className="label">Ícone</label><input className="input text-2xl text-center" value={conta.icone} onChange={(e) => setConta({ ...conta, icone: e.target.value })} /></div>
-          <div><label className="label">Tipo</label><select className="input" value={conta.tipo} onChange={(e) => setConta({ ...conta, tipo: e.target.value as any })}><option value="conta">Conta bancária</option><option value="cartao">Cartão de crédito</option><option value="dinheiro">Dinheiro</option></select></div></div>
+        <div className="grid grid-cols-2 gap-3 mb-3"><div><label className="label">Ícone</label><input className="input text-2xl text-center" value={conta.icone} onChange={(e) => setConta({ ...conta, icone: e.target.value })} /></div>
+          <div><label className="label">Tipo</label><select className="input" value={conta.tipo} onChange={(e) => {
+            const tipo = e.target.value as Conta['tipo']
+            const padrao = tipo === TIPO_VR ? '🎫' : tipo === 'pix' ? '💠' : tipo === 'cartao' ? '💳' : tipo === 'dinheiro' ? '💵' : '🏦'
+            const icone = !conta.icone || ['🏦', '💳', '💵', '💠', '🎫'].includes(conta.icone) ? padrao : conta.icone
+            const nome = tipo === TIPO_VR && !(conta.nome ?? '').trim() ? 'VR - Ticket' : conta.nome
+            setConta({ ...conta, tipo, icone, nome, titularId: tipo === TIPO_VR ? conta.titularId : undefined })
+          }}><option value="conta">Conta bancária</option><option value="cartao">Cartão de crédito</option><option value="dinheiro">Dinheiro</option><option value="pix">Pix</option><option value="vr_ticket">VR - Ticket</option></select></div></div>
+        {conta.tipo === TIPO_VR && listaMembros.length > 0 && (
+          <div className="mb-5">
+            <label className="label">Titular do ticket</label>
+            <select className="input mb-2" value={conta.titularId ?? ''} onChange={(e) => setConta({ ...conta, titularId: e.target.value || undefined })}>
+              <option value="">Selecione o integrante</option>
+              {listaMembros.map((m) => <option key={m.userId} value={m.userId}>{m.nome}</option>)}
+            </select>
+            <p className="text-xs text-slate-500">O titular só identifica de quem é o saldo. Qualquer integrante do perfil pode lançar receita ou despesa neste ticket.</p>
+          </div>
+        )}
+        {conta.tipo === TIPO_VR && listaMembros.length === 0 && <p className="text-xs text-slate-500 mb-5">No modo família, escolha de quem é este ticket. Qualquer integrante poderá usá-lo.</p>}
         <div className="flex gap-2">{conta.id && <button className="btn-danger" onClick={excluirConta}><Trash2 size={18} /></button>}<button className="btn-primary flex-1" onClick={salvarConta}>Salvar</button></div>
       </Modal>}
     </div>

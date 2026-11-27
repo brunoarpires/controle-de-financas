@@ -7,6 +7,7 @@ import { brl, dataBR, mesAtual, nomeMes } from '../utils'
 import { normalizar } from '../categorizar'
 import { SeletorMes, Titulo, FiltroMembro } from '../components/ui'
 import TransacaoForm from '../components/TransacaoForm'
+import { rotuloConta, transacaoDaPessoa } from '../vrTicket'
 
 export default function Lancamentos() {
   const [mes, setMes] = useState(mesAtual())
@@ -20,7 +21,7 @@ export default function Lancamentos() {
   const membrosMap = useMembros(), membros = [...membrosMap.values()].sort((a, b) => a.nome.localeCompare(b.nome))
   const [pessoa, setPessoa] = usePessoa()
   const b = normalizar(busca)
-  const filtrada = lista.filter((t) => (!pessoa || t.userId === pessoa) && (!cat || t.categoriaId === cat) && (!tipo || t.tipo === tipo) && (!b || normalizar(`${t.descricao} ${t.observacao ?? ''} ${t.nota?.estabelecimento ?? ''}`).includes(b)))
+  const filtrada = lista.filter((t) => transacaoDaPessoa(t, pessoa, contas) && (!cat || t.categoriaId === cat) && (!tipo || t.tipo === tipo) && (!b || normalizar(`${t.descricao} ${t.observacao ?? ''} ${t.nota?.estabelecimento ?? ''}`).includes(b)))
     .sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm - a.criadoEm)
   const total = filtrada.reduce((s, t) => s + (t.tipo === 'receita' ? t.valor : -t.valor), 0)
   const grupos = new Map<string, Transacao[]>(); filtrada.forEach((t) => grupos.set(t.data, [...(grupos.get(t.data) ?? []), t]))
@@ -46,7 +47,7 @@ export default function Lancamentos() {
             {ts.map((t) => { const c = cats.get(t.categoriaId); return (
               <button key={t.id} onClick={() => setEditando(t)} className="w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
                 <span className="text-xl w-10 h-10 shrink-0 rounded-full flex items-center justify-center" style={{ background: (c?.cor ?? '#999') + '33' }}>{c?.icone}</span>
-                <div className="flex-1 min-w-0"><div className="font-medium truncate flex items-center gap-1">{t.descricao}{t.parcelaTotal && t.parcelaTotal >= 2 && <span className="text-[10px] font-semibold uppercase tracking-wide bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded px-1.5 py-0.5">{t.parcelaNumero}/{t.parcelaTotal}</span>}{(t.foto || t.fotoPath) && <Paperclip size={14} className="text-slate-400" />}</div><div className="text-xs text-slate-500 truncate">{t.hora && <>{t.hora} · </>}{c?.nome} · {contas.get(t.contaId)?.nome}{membros.length > 1 && t.userId && <> · <span className="font-semibold">{membrosMap.get(t.userId)?.nome ?? 'ex-membro'}</span></>}</div></div>
+                <div className="flex-1 min-w-0"><div className="font-medium truncate flex items-center gap-1">{t.descricao}{t.parcelaTotal && t.parcelaTotal >= 2 && <span className="text-[10px] font-semibold uppercase tracking-wide bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded px-1.5 py-0.5">{t.parcelaNumero}/{t.parcelaTotal}</span>}{(t.foto || t.fotoPath) && <Paperclip size={14} className="text-slate-400" />}</div><div className="text-xs text-slate-500 truncate">{t.hora && <>{t.hora} · </>}{c?.nome} · {contas.get(t.contaId) ? rotuloConta(contas.get(t.contaId)!, membrosMap) : '—'}{membros.length > 1 && t.userId && <> · lançado por <span className="font-semibold">{membrosMap.get(t.userId)?.nome ?? 'ex-membro'}</span></>}</div></div>
                 <b className={`whitespace-nowrap ${t.tipo === 'receita' ? 'text-brand-600' : 'text-rose-600'}`}>{t.tipo === 'receita' ? '+' : '−'} {brl(t.valor)}</b>
               </button>) })}
           </div>

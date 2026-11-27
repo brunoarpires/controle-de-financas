@@ -6,6 +6,7 @@ import {
   pixNubank, tedItau, boleto, recarga, debito, nfce,
   stoneLimpo, stoneOcrRuido, stoneOcrSemValor, c6PixLimpo, c6PixOcrRuido,
   mercadoNfce, mercadoNfceOcrRuido,
+  pixCobrancaLimpo, pixCobrancaOcrRuido, pixCobrancaValorOriginalDistinto,
 } from './fixtures.ts'
 
 describe('formatos atuais', () => {
@@ -196,5 +197,44 @@ SiTef from Fiserv`)
     assert.equal(o.data, '2026-10-20')
     assert.equal(o.hora, '18:42')
     assert.equal(ehComprovante(`Documento Auxiliar da Nota Fiscal\nSiTef from Fiserv`), false)
+  })
+})
+
+describe('Pix Cobrança (Comprovante do Pix, Valor pago / Para)', () => {
+  for (const [nome, texto] of [['limpo', pixCobrancaLimpo], ['ocr-ruído', pixCobrancaOcrRuido]] as const) {
+    it(`${nome}: valor pago, data/hora do cabeçalho, favorecido do Para, não usa original/vencimento/devedor/pagador`, () => {
+      assert.equal(ehComprovante(texto), true)
+      const l = interpretarLeitura(texto)
+      assert.ok(l.comprovante)
+      const c = l.comprovante!
+      assert.equal(c.tipo, 'pix')
+      assert.equal(c.pagamento, 'pix')
+      assert.equal(c.valor, 95.40)
+      assert.notEqual(c.valor, 0)
+      assert.equal(c.data, '2026-11-15')
+      assert.notEqual(c.data, '2026-11-20')
+      assert.equal(c.hora, '14:22')
+      assert.match(c.favorecido ?? '', /comercio de artigos exemplo 3d ltda/i)
+      assert.doesNotMatch(c.favorecido ?? '', /^(para)$/i)
+      assert.doesNotMatch(c.favorecido ?? '', /ana exemplo/i)
+      assert.doesNotMatch(c.favorecido ?? '', /joao da silva/i)
+      assert.doesNotMatch(c.descricao, /ana exemplo|joao da silva|^PIX - Para$/i)
+      assert.match(c.descricao, /PIX.*COMERCIO DE ARTIGOS EXEMPLO 3D LTDA/i)
+      assert.match(c.instituicao ?? '', /psp exemplo/i)
+      assert.equal(l.itens.length, 0)
+      assert.equal(l.total, 95.40)
+    })
+  }
+
+  it('ignora Valor original quando ele é diferente do Valor pago', () => {
+    const c = interpretarComprovante(pixCobrancaValorOriginalDistinto)
+    assert.equal(c.tipo, 'pix')
+    assert.equal(c.valor, 134.80)
+    assert.notEqual(c.valor, 129.9)
+    assert.equal(c.data, '2026-05-19')
+    assert.notEqual(c.data, '2026-05-10')
+    assert.equal(c.hora, '08:32')
+    assert.match(c.favorecido ?? '', /empresa cobranca exemplo/i)
+    assert.doesNotMatch(c.favorecido ?? '', /ana exemplo|joao da silva/i)
   })
 })

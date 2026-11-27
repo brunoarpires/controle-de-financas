@@ -2,8 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 import { TrendingUp, TrendingDown, Camera, FileSpreadsheet, AlertTriangle, Eye, EyeOff } from 'lucide-react'
-import { db, type Tipo } from '../db'
-import { useCategorias, mapaPorId, useMembros, usePessoa, useOcultos } from '../hooks'
+import { db, type Tipo, type Transacao } from '../db'
+import { useCategorias, useContas, mapaPorId, useMembros, usePessoa, useOcultos } from '../hooks'
+import { transacaoDaPessoa, saldosVrPorConta, rotuloConta } from '../vrTicket'
 import { useSessao } from '../sessao'
 import { ocultarValores, brl, mesAtual, nomeMes, somaMes, dataBR } from '../utils'
 import { SeletorMes, FiltroMembro } from '../components/ui'
@@ -12,12 +13,19 @@ export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
   const [mes, setMes] = useState(mesAtual())
   const ocultos = useOcultos()
   const cats = mapaPorId(useCategorias())
+  const contasLista = useContas()
+  const contas = mapaPorId(contasLista)
   const inicio6 = somaMes(mes, -5)
   const ses = useSessao()
   const membrosMap = useMembros(), membros = [...membrosMap.values()].sort((a, b) => a.nome.localeCompare(b.nome))
   const [pessoa, setPessoa] = usePessoa()
   const todas = useLiveQuery(() => db.transacoes.where('data').between(inicio6 + '-01', mes + '-31', true, true).toArray(), [mes]) ?? []
-  const trans = pessoa ? todas.filter((t) => t.userId === pessoa) : todas
+  const trans = pessoa ? todas.filter((t) => transacaoDaPessoa(t, pessoa, contas)) : todas
+  const txsVr = useLiveQuery(() => {
+    const ids = contasLista.filter((c) => c.tipo === 'vr_ticket').map((c) => c.id)
+    return ids.length ? db.transacoes.where('contaId').anyOf(ids).toArray() : Promise.resolve([] as Transacao[])
+  }, [contasLista]) ?? []
+  const saldosVr = saldosVrPorConta(contasLista, txsVr, membrosMap, pessoa || undefined)
   const porPessoa = membros.map((m) => { const l = todas.filter((t) => t.data.startsWith(mes) && t.userId === m.userId); return { m, desp: l.filter((t) => t.tipo === 'despesa').reduce((s, t) => s + t.valor, 0), rec: l.filter((t) => t.tipo === 'receita').reduce((s, t) => s + t.valor, 0), n: l.length } })
   const maxPessoa = Math.max(1, ...porPessoa.map((x) => x.desp))
   const quem = pessoa ? membrosMap.get(pessoa)?.nome : membros.length > 1 ? 'todos' : ''
@@ -51,6 +59,19 @@ export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
         <a href="#/importar/nota" className="btn-ghost py-4"><Camera size={20} />Foto da nota</a>
         <a href="#/importar/planilha" className="btn-ghost py-4"><FileSpreadsheet size={20} />Planilha</a>
       </div>
+      {saldosVr.length > 0 && (
+        <div className="card">
+          <h2 className="font-bold mb-1">Saldo VR - Ticket</h2>
+          <p className="text-xs text-slate-500 mb-3">Saldo restante de cada ticket (todas as receitas e despesas). Qualquer integrante pode usar.</p>
+          <ul className="space-y-2">{saldosVr.map((s) => (
+            <li key={s.conta.id} className="flex items-center gap-2 text-sm">
+              <span className="text-xl">{s.conta.icone || '🎫'}</span>
+              <span className="flex-1 min-w-0 truncate">{s.rotulo}</span>
+              <b className={s.saldo >= 0 ? 'text-brand-600' : 'text-rose-600'}>{brl(s.saldo)}</b>
+            </li>
+          ))}</ul>
+        </div>
+      )}
       {alertas.map(({ o, gasto, c }) => (
         <div key={o.categoriaId} className={`card flex items-center gap-3 ${gasto > o.limite ? 'border-rose-300 bg-rose-50 dark:bg-rose-950/40' : 'border-amber-300 bg-amber-50 dark:bg-amber-950/40'}`}>
           <AlertTriangle className={gasto > o.limite ? 'text-rose-600' : 'text-amber-600'} />
@@ -87,7 +108,7 @@ export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
         {ultimos.length === 0 ? <p className="text-slate-500 text-sm">Toque em <b>− Despesa</b> ou <b>+ Receita</b> para começar.</p> : ultimos.map((t) => (
           <div key={t.id} className="flex items-center gap-3 py-2 border-b last:border-0 border-slate-100 dark:border-slate-800">
             <span className="text-xl w-9 h-9 rounded-full flex items-center justify-center" style={{ background: (cats.get(t.categoriaId)?.cor ?? '#999') + '33' }}>{cats.get(t.categoriaId)?.icone}</span>
-            <div className="flex-1 min-w-0"><div className="font-medium truncate flex items-center gap-1">{t.descricao}{t.parcelaTotal && t.parcelaTotal >= 2 && <span className="text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 rounded px-1.5">{t.parcelaNumero}/{t.parcelaTotal}</span>}</div><div className="text-xs text-slate-500">{dataBR(t.data)}{membros.length > 1 && t.userId && ` · ${membrosMap.get(t.userId)?.nome ?? 'ex-membro'}`}</div></div>
+            <div className="flex-1 min-w-0"><div className="font-medium truncate flex items-center gap-1">{t.descricao}{t.parcelaTotal && t.parcelaTotal >= 2 && <span className="text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 rounded px-1.5">{t.parcelaNumero}/{t.parcelaTotal}</span>}</div><div className="text-xs text-slate-500">{dataBR(t.data)}{contas.get(t.contaId) && ` · ${rotuloConta(contas.get(t.contaId)!, membrosMap)}`}{membros.length > 1 && t.userId && ` · lançado por ${membrosMap.get(t.userId)?.nome ?? 'ex-membro'}`}</div></div>
             <b className={t.tipo === 'receita' ? 'text-brand-600' : 'text-rose-600'}>{t.tipo === 'receita' ? '+' : '−'} {brl(t.valor)}</b>
           </div>
         ))}

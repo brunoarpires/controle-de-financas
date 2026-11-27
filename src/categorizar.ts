@@ -12,6 +12,7 @@ const BASE: Record<string, string[]> = {
   Lazer: ['cinema', 'show', 'ingresso', 'viagem', 'hotel', 'teatro', 'parque', 'steam', 'playstation'],
   Compras: ['magazine', 'americanas', 'amazon', 'mercado livre', 'shopee', 'renner', 'riachuelo', 'c&a', 'loja', 'casas bahia', 'shein'],
   Salário: ['salario', 'pagamento', 'folha', 'pro labore', 'proventos'],
+  'VR - Ticket': ['vr ticket', 'vr - ticket', 'vale refeicao', 'vale-refeicao', 'credito ticket', 'ticket vr', 'credito vr'],
 }
 // CNAE (2 primeiros dígitos ou 4) -> categoria
 const CNAE: [RegExp, string][] = [

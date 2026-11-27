@@ -5,7 +5,8 @@ export interface ItemNota { descricao: string; quantidade?: number | null; valor
 export interface NotaInfo { comprovante?: import('./comprovante').DadosComprovante; cnpj?: string; chave?: string; url?: string; estabelecimento?: string; razaoSocial?: string; endereco?: string; cnae?: string; itens?: ItemNota[] }
 export interface Transacao { id: string; tipo: Tipo; valor: number; data: string; hora?: string; descricao: string; categoriaId: string; contaId: string; userId?: string; observacao?: string; foto?: Blob; fotoPath?: string; nota?: NotaInfo; criadoEm: number; parcelaGrupoId?: string; parcelaNumero?: number; parcelaTotal?: number }
 export interface Categoria { id: string; nome: string; icone: string; cor: string; tipo: Tipo }
-export interface Conta { id: string; nome: string; tipo: 'conta' | 'cartao' | 'dinheiro'; icone: string }
+export type TipoConta = 'conta' | 'cartao' | 'dinheiro' | 'pix' | 'vr_ticket'
+export interface Conta { id: string; nome: string; tipo: TipoConta; icone: string; titularId?: string }
 export interface Orcamento { categoriaId: string; limite: number }
 export interface Regra { palavra: string; categoriaId: string; peso: number }
 export interface CnpjCache { cnpj: string; dados: any; ts: number }
@@ -26,6 +27,7 @@ function abrir(nome: string): BD {
   })
   d.version(2).stores({ transacoes: 'id, data, tipo, categoriaId, contaId, userId' }) // v2: campo opcional "hora" (HH:MM)
   d.version(3).stores({ transacoes: 'id, data, tipo, categoriaId, contaId, userId, parcelaGrupoId' }) // v3: parcelas
+  d.version(4).stores({ contas: 'id, tipo, titularId' }) // v4: titular do VR - Ticket
   return d
 }
 /** Banco base: dados gerais do aparelho (e o cache do perfil que já existia antes dos perfis). */
@@ -84,16 +86,22 @@ export const CATEGORIAS_PADRAO: Omit<Categoria, 'id'>[] = [
   { nome: 'Educação', icone: '📚', cor: '#6366f1', tipo: 'despesa' }, { nome: 'Lazer', icone: '🎉', cor: '#ec4899', tipo: 'despesa' },
   { nome: 'Compras', icone: '🛍️', cor: '#14b8a6', tipo: 'despesa' }, { nome: 'Outros', icone: '📦', cor: '#64748b', tipo: 'despesa' },
   { nome: 'Salário', icone: '💰', cor: '#059669', tipo: 'receita' }, { nome: 'Extra', icone: '✨', cor: '#22c55e', tipo: 'receita' },
-  { nome: 'Outras receitas', icone: '📥', cor: '#84cc16', tipo: 'receita' },
+  { nome: 'VR - Ticket', icone: '🎫', cor: '#f59e0b', tipo: 'receita' }, { nome: 'Outras receitas', icone: '📥', cor: '#84cc16', tipo: 'receita' },
 ]
 
 /** Modo sem nuvem: cria categorias/contas padrão e migra o banco da versão anterior (ids numéricos). */
 export async function garantirDadosLocais() {
   await migrarBancoAntigo()
   if ((await db.categorias.count()) === 0) await db.categorias.bulkAdd(CATEGORIAS_PADRAO.map((c) => ({ ...c, id: uuid() })))
+  else if (!(await db.categorias.filter((c) => c.tipo === 'receita' && c.nome.trim().toLowerCase() === 'vr - ticket').count())) {
+    await db.categorias.add({ id: uuid(), nome: 'VR - Ticket', icone: '🎫', cor: '#f59e0b', tipo: 'receita' })
+  }
   if ((await db.contas.count()) === 0) await db.contas.bulkAdd([
-    { id: uuid(), nome: 'Conta corrente', tipo: 'conta', icone: '🏦' }, { id: uuid(), nome: 'Cartão de crédito', tipo: 'cartao', icone: '💳' }, { id: uuid(), nome: 'Dinheiro', tipo: 'dinheiro', icone: '💵' },
+    { id: uuid(), nome: 'Conta corrente', tipo: 'conta', icone: '🏦' }, { id: uuid(), nome: 'Cartão de crédito', tipo: 'cartao', icone: '💳' }, { id: uuid(), nome: 'Dinheiro', tipo: 'dinheiro', icone: '💵' }, { id: uuid(), nome: 'Pix', tipo: 'pix', icone: '💠' },
   ])
+  else if (!(await db.contas.filter((c) => c.tipo === 'pix').count())) {
+    await db.contas.add({ id: uuid(), nome: 'Pix', tipo: 'pix', icone: '💠' })
+  }
 }
 export async function migrarBancoAntigo() {
   if (await getMeta('migrouV1')) return

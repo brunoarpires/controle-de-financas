@@ -9,6 +9,7 @@ import { modoNuvem } from '../supabase'
 import { podeEditar } from '../sessao'
 import { urlFoto } from '../sync'
 import { useMembros } from '../hooks'
+import { rotuloContaComIcone, nomeTitular, TIPO_VR, ehCategoriaVr } from '../vrTicket'
 
 export default function TransacaoForm({ tipoInicial = 'despesa', transacao, onFechar }: { tipoInicial?: Tipo; transacao?: Transacao; onFechar: () => void }) {
   const cats = useCategorias(), contas = useContas()
@@ -33,6 +34,8 @@ export default function TransacaoForm({ tipoInicial = 'despesa', transacao, onFe
   const membros = useMembros()
   const autor = transacao?.userId ? membros.get(transacao.userId) : undefined
   const editavel = podeEditar(transacao)
+  const contaSel = contas.find((c) => c.id === contaId)
+  const titularNome = contaSel ? nomeTitular(contaSel, membros) : undefined
 
   const jaParcelado = !!(transacao?.parcelaTotal && transacao.parcelaTotal >= 2)
   const [parcelado, setParcelado] = useState(false)
@@ -80,6 +83,13 @@ export default function TransacaoForm({ tipoInicial = 'despesa', transacao, onFe
     const t = setTimeout(async () => { const s = await sugerirCategoria(descricao, tipo); if (s) setCategoriaId(s) }, 300)
     return () => clearTimeout(t)
   }, [descricao, tipo, tocouCategoria])
+  useEffect(() => {
+    if (transacao || tocouCategoria || tipo !== 'receita') return
+    const c = contas.find((x) => x.id === contaId)
+    if (c?.tipo !== TIPO_VR) return
+    const cat = catsTipo.find((x) => ehCategoriaVr(x.nome))
+    if (cat) setCategoriaId(cat.id)
+  }, [contaId, tipo, contas, catsTipo, transacao, tocouCategoria])
 
   const v = parseValorBR(valor)
   const nParc = Math.max(0, Math.min(48, Math.floor(Number(String(nParcelas).replace(/\D/g, '')) || 0)))
@@ -203,7 +213,12 @@ export default function TransacaoForm({ tipoInicial = 'despesa', transacao, onFe
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div><label className="label">Data{querParcelar ? ' da 1ª' : ''}</label><CampoData value={data} onChange={setData} disabled={!editavel} /></div>
         <div><label className="label">Horário (opcional)</label><CampoHora value={hora} onChange={setHora} disabled={!editavel} optional /></div>
-        <div className="sm:col-span-2"><label className="label">Conta / cartão</label><select className="input" value={contaId} onChange={(e) => setContaId(e.target.value)} disabled={!editavel}>{contas.map((c) => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}</select></div>
+        <div className="sm:col-span-2"><label className="label">Conta / forma de pagamento</label>
+          <select className="input" value={contaId} onChange={(e) => setContaId(e.target.value)} disabled={!editavel}>{contas.map((c) => <option key={c.id} value={c.id}>{rotuloContaComIcone(c, membros)}</option>)}</select>
+          {contaSel?.tipo === TIPO_VR && (
+            <p className="text-xs text-slate-500 mt-1">{titularNome ? <>Ticket de <b>{titularNome}</b>. </> : null}Qualquer integrante pode lançar neste saldo.</p>
+          )}
+        </div>
       </div>
 
       {!transacao && (
@@ -309,7 +324,7 @@ export default function TransacaoForm({ tipoInicial = 'despesa', transacao, onFe
           <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setFoto(await comprimirImagem(f)); setFotoPath(undefined) } }} /></label>}
         {editavel && temFoto && <button type="button" className="text-sm text-rose-600" onClick={() => { setFoto(undefined); setFotoPath(undefined) }}>Remover</button>}
       </div>
-      {modoNuvem && transacao && <p className="text-xs text-slate-500 mb-1">Lançado por <b>{autor?.nome ?? 'ex-membro'}</b>{!editavel && ' — só essa pessoa ou um administrador pode alterar.'}</p>}
+      {modoNuvem && transacao && <p className="text-xs text-slate-500 mb-1">Lançado por <b>{autor?.nome ?? 'ex-membro'}</b>{titularNome && <> · Ticket de <b>{titularNome}</b></>}{!editavel && ' — só quem lançou ou um administrador pode alterar.'}</p>}
     </Modal>
   )
 }

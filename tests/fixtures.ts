@@ -1,4 +1,4 @@
-/** Textos sanitizados (sem dados pessoais reais). Espelham layouts PIX/TED/boleto/nota e os modelos Stone/C6. */
+/** Textos sanitizados (sem dados pessoais reais). Espelham layouts PIX/TED/boleto/nota e os modelos Stone/C6/Pix Cobrança. */
 
 export const pixNubank = `Comprovante de Pix
 Valor
@@ -238,3 +238,112 @@ VALOR: 89,90
 SUPERMERCADO EXEMPLO 001 20.10.26-18:42
 CARTAO: xxxx.xxxx.xxxx.1234
 SiTef from Fiserv`
+
+/** Pix Cobrança no layout "Comprovante do Pix" (Valor pago / Para). Dados fictícios. */
+export const pixCobrancaLimpo = `Comprovante do Pix
+15/11/2026 - 14:22:18
+Valor pago
+R$ 95,40
+Identificação do pagamento
+QR26111500EXEMPLOIDPAGAMENTOX0ABCDE
+Informação para o pagador
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+Forma de pagamento
+Ag 00001 Cc 1000000-0
+Dados do recebedor
+Para
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+CNPJ
+11.***.***/0001-0*
+Instituição
+PSP EXEMPLO
+Informações do pagamento
+Vencimento
+20/11/2026
+Valor original
+R$ 0,00
+Devedor
+ANA EXEMPLO
+CPF
+***.123.456-**
+Comprovante do Pix 1/2
+Informação para o pagador
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+Dados do pagador
+De
+JOAO DA SILVA EXEMPLO
+CPF
+***.987.654-**
+Instituição
+BCO SANTANDER (BRASIL) S.A.
+ID/Transação
+E90400888202611151422EXEMPLOID0001
+Data e hora da transação
+15/11/2026 - 14:22:18
+Código de autenticação
+ABC123DEF456GHI789JKL012`
+
+/** Mesmo layout com ruído típico de OCR (título do topo ausente, typos, CNPJ/CPF mascarados ruidosos, 2ª página cortada). */
+export const pixCobrancaOcrRuido = `15/11/2026 - 14:22:18
+Valor pago
+R$ 95,40
+Identificação do pagamento
+QR26111500EXEMPLOIDPAGAMENTOX0ABCDE
+Informação para o pagador
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+»rma de pagamento
+Ag 00001 Cc 1000000-0
+Dados do recebedor
+Para
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+CNPJ
+15.***.***/0001-6*
+Instituição
+PSP EXEMPLO
+Informações do pagamente
+Vencimento
+20/11/2026
+Valor original
+R$ 0,00
+Devedor
+ANA EXEMPLO
+CPF
+***.123.456-"*
+Comprovante do Pix 12
+Informação para o pagador
+COMERCIO DE ARTIGOS EXEMPLO 3D LTDA
+Dados do pagado
+De
+JOAO DA SILVA EXEMPLO
+CPE`
+
+/** Valor original diferente e não nulo: o lançamento deve usar só o Valor pago. */
+export const pixCobrancaValorOriginalDistinto = `Comprovante do Pix
+19/05/2026 - 08:32:30
+Valor pago
+R$ 134,80
+Identificação do pagamento
+BOLETO000000000000000000EXEMPLO
+Informação para o pagador
+Pagamento referente ao Boleto 000111 - Vencimento 10.05.2026 - R$ 129,90
+Forma de pagamento
+Ag 00001 Cc 1000000-0
+Dados do recebedor
+Para
+Empresa Cobranca Exemplo Ltda
+CNPJ
+61.***.***/0001-0*
+Instituição
+BCO DO BRASIL S.A.
+Informações do pagamento
+Vencimento
+10/05/2026
+Valor original
+R$ 129,90
+Devedor
+ANA EXEMPLO
+Dados do pagador
+De
+JOAO DA SILVA EXEMPLO
+Instituição
+BCO SANTANDER (BRASIL) S.A.`
