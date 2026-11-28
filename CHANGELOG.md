@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 — 27/11/2026
+
+- Card de **saldo total** no Início: receitas menos despesas de todo o período, acima do seletor de mês.
+- Um único olho controla a visibilidade de todos os valores da tela (total, saldo do mês, receitas e despesas). A escolha vale nesta aba (`sessionStorage`); ao abrir o app ou trocar de perfil, os valores voltam a ficar escondidos.
+- O total respeita o perfil ativo e o filtro por pessoa (incluindo o titular do VR - Ticket) e não muda ao trocar o mês.
+
 ## 1.1.0 — 27/11/2026
 
 - Forma de pagamento **Pix** (tipo de conta `pix`), incluída nos perfis novos e no modo local.

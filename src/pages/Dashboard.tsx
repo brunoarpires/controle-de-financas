@@ -6,7 +6,7 @@ import { db, type Tipo, type Transacao } from '../db'
 import { useCategorias, useContas, mapaPorId, useMembros, usePessoa, useOcultos } from '../hooks'
 import { transacaoDaPessoa, saldosVrPorConta, rotuloConta } from '../vrTicket'
 import { useSessao } from '../sessao'
-import { ocultarValores, brl, mesAtual, nomeMes, somaMes, dataBR } from '../utils'
+import { ocultarValores, brl, mesAtual, nomeMes, somaMes, dataBR, saldoLancamentos } from '../utils'
 import { SeletorMes, FiltroMembro } from '../components/ui'
 
 export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
@@ -33,6 +33,9 @@ export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
   const doMes = trans.filter((t) => t.data.startsWith(mes))
   const rec = doMes.filter((t) => t.tipo === 'receita').reduce((s, t) => s + t.valor, 0)
   const desp = doMes.filter((t) => t.tipo === 'despesa').reduce((s, t) => s + t.valor, 0)
+  const todasPeriodo = useLiveQuery(() => db.transacoes.toArray(), []) ?? []
+  const transPeriodo = pessoa ? todasPeriodo.filter((t) => transacaoDaPessoa(t, pessoa, contas)) : todasPeriodo
+  const saldoTotal = saldoLancamentos(transPeriodo)
   const porCat = new Map<string, number>()
   doMes.filter((t) => t.tipo === 'despesa').forEach((t) => porCat.set(t.categoriaId, (porCat.get(t.categoriaId) ?? 0) + t.valor))
   const pizza = [...porCat.entries()].map(([id, v]) => ({ nome: cats.get(id)?.nome ?? '?', icone: cats.get(id)?.icone, cor: cats.get(id)?.cor ?? '#999', valor: v })).sort((a, b) => b.valor - a.valor)
@@ -42,16 +45,26 @@ export default function Dashboard({ onNovo }: { onNovo: (t: Tipo) => void }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"><h1 className="text-2xl md:text-3xl font-bold min-w-0 break-words">Olá{ses.eu ? `, ${ses.eu.nome}` : ''}! 👋</h1><SeletorMes mes={mes} setMes={setMes} rotulo={nomeMes(mes)} /></div>
+      <h1 className="text-2xl md:text-3xl font-bold min-w-0 break-words">Olá{ses.eu ? `, ${ses.eu.nome}` : ''}! 👋</h1>
       <FiltroMembro valor={pessoa} onChange={setPessoa} membros={membros} />
+      <div className="card">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm text-slate-500">Saldo total{quem && <> · <b>{quem}</b></>}</div>
+          <button data-testid="olho" onClick={() => ocultarValores(!ocultos)} aria-label={ocultos ? 'Mostrar valores' : 'Esconder valores'} title={ocultos ? 'Mostrar valores' : 'Esconder valores'} className="p-2 -m-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">{ocultos ? <EyeOff size={22} /> : <Eye size={22} />}</button>
+        </div>
+        <div className="text-3xl font-bold my-1">{brl(saldoTotal)}</div>
+        <p className="text-xs text-slate-500">Todo o período · não muda com o mês</p>
+      </div>
+      <div className="space-y-3">
+      <div className="flex justify-center"><SeletorMes mes={mes} setMes={setMes} rotulo={nomeMes(mes)} /></div>
       <div className="card bg-gradient-to-br from-brand-600 to-emerald-700 text-white border-0">
-        <div className="flex items-center justify-between gap-2"><div className="text-sm opacity-90">Saldo do mês{quem && <> · <b>{quem}</b></>}</div>
-          <button data-testid="olho" onClick={() => ocultarValores(!ocultos)} aria-label={ocultos ? 'Mostrar valores' : 'Esconder valores'} title={ocultos ? 'Mostrar valores' : 'Esconder valores'} className="p-2 -m-1 rounded-full hover:bg-white/15 active:bg-white/25">{ocultos ? <EyeOff size={22} /> : <Eye size={22} />}</button></div>
+        <div className="text-sm opacity-90">Saldo do mês{quem && <> · <b>{quem}</b></>}</div>
         <div className="text-4xl font-bold my-1">{brl(rec - desp)}</div>
         <div className="flex gap-6 mt-3 text-sm">
           <div className="flex items-center gap-2"><TrendingUp size={18} /><div><div className="opacity-80">Receitas</div><b className="text-base">{brl(rec)}</b></div></div>
           <div className="flex items-center gap-2"><TrendingDown size={18} /><div><div className="opacity-80">Despesas</div><b className="text-base">{brl(desp)}</b></div></div>
         </div>
+      </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button className="btn py-4 bg-rose-600 text-white text-base" onClick={() => onNovo('despesa')}>− Despesa</button>

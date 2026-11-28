@@ -1,10 +1,25 @@
-/* Privacidade: valores escondidos por padrão; só em memória (volta a esconder ao abrir o app ou trocar de perfil). */
-let valoresOcultos = true
+/* Privacidade: valores escondidos por padrão. A escolha do olho vale nesta aba (sessionStorage);
+   ao abrir o app ou trocar de perfil, volta a esconder (ver App.tsx). */
+const CHAVE_OCULTOS = 'valoresOcultos'
+function lerOcultos(): boolean {
+  try { if (sessionStorage.getItem(CHAVE_OCULTOS) === 'false') return false } catch { /* sem storage (SSR/testes) */ }
+  return true
+}
+let valoresOcultos = lerOcultos()
 const ouvOcultos = new Set<() => void>()
-export const ocultarValores = (v: boolean) => { valoresOcultos = v; ouvOcultos.forEach((f) => f()) }
+export const ocultarValores = (v: boolean) => {
+  valoresOcultos = v
+  try { sessionStorage.setItem(CHAVE_OCULTOS, String(v)) } catch { /* ignore */ }
+  ouvOcultos.forEach((f) => f())
+}
 export const assinarOcultos = (f: () => void) => { ouvOcultos.add(f); return () => { ouvOcultos.delete(f) } }
 export const valoresEstaoOcultos = () => valoresOcultos
 export const brl = (v: number) => (valoresOcultos ? 'R$ •••••' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))
+
+/** Receitas − despesas da lista (já filtrada; lançamentos excluídos não entram no cache local). */
+export function saldoLancamentos(transacoes: { tipo: 'receita' | 'despesa'; valor: number }[]) {
+  return transacoes.reduce((s, t) => s + (t.tipo === 'receita' ? t.valor : -t.valor), 0)
+}
 export const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 export const mesAtual = () => hojeISO().slice(0, 7)
 export const dataBR = (iso: string) => (iso ? iso.split('-').reverse().join('/') : '')

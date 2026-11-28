@@ -142,6 +142,12 @@ No banco, a coluna `titular_id` só é permitida em contas do tipo `vr_ticket`. 
 
 ## Novidades
 
+### v1.2.0 (27/11/2026)
+
+- Card fixo de **saldo total** no Início (todas as receitas menos todas as despesas), acima do seletor de mês, separado da seção mensal.
+- Um único olho, no card de saldo total, mostra ou esconde todos os valores da tela. A escolha vale nesta aba; ao abrir o app ou trocar de perfil, volta a esconder.
+- O total respeita o perfil e o filtro por pessoa (incluindo o VR - Ticket) e não muda ao trocar o mês.
+
 ### v1.1.0 (27/11/2026)
 
 - Forma de pagamento **Pix**, incluída nas contas padrão (novos perfis e modo local) e sugerida ao importar um comprovante Pix.
