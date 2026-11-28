@@ -132,7 +132,8 @@ export function pontuarTextoOCR(texto: string): number {
   if (/valor\s+a\s+pagar|valor\s+pago|total\s+a\s+pagar/.test(t)) s += 40
   else if (/valor\s+total|total\s*r\$|^valor\s*:/.test(t)) s += 20
   if (/\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}/.test(t)) s += 15
-  if (/forma\s*(de)?\s*pagamento|cartao|mastercard|visa|\bpix\b|comprovante/.test(t)) s += 10
+  if (/forma\s*(de)?\s*pagamento|cartao|mastercard|visa|\bpix\b|comprovante|nome no extrato/.test(t)) s += 10
+  if (/\d{1,2}\s*(de\s+)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/.test(t)) s += 10
   if (/\d{2}[.,\s]?\d{3}[.,\s]?\d{3}\s?[/|l1i]\s?\d{4}/.test(t)) s += 15
   const letras = (texto.match(/[A-Za-zÀ-ú]/g) || []).length
   s += Math.min(40, Math.floor(letras / 25))
@@ -185,6 +186,23 @@ async function ocrEmFatias(worker: { recognize: (b: Blob) => Promise<{ data: { t
   return textos.join('\n')
 }
 
+/** Média abaixo deste limiar (0–255) indica print em modo escuro; o Tesseract lê melhor texto escuro em fundo claro. */
+export const LIMIAR_INVERSAO_OCR = 110
+export function mediaCinza(gray: ArrayLike<number>) {
+  let s = 0
+  for (let i = 0; i < gray.length; i++) s += gray[i]
+  return s / Math.max(1, gray.length)
+}
+export function deveInverterOcr(media: number) {
+  return media < LIMIAR_INVERSAO_OCR
+}
+/** Inverte o cinza quando a imagem é predominantemente escura (Wallet / app em tema escuro). */
+export function inverterSeEscuro(gray: Uint8ClampedArray) {
+  if (!deveInverterOcr(mediaCinza(gray))) return gray
+  for (let i = 0; i < gray.length; i++) gray[i] = 255 - gray[i]
+  return gray
+}
+
 /** Captura estreita/alta (app bancário) vs foto de cupom térmico: escalas e contraste diferentes. */
 function autoContraste(gray: Uint8ClampedArray, cutoffPct: number) {
   const hist = new Array(256).fill(0)
@@ -217,6 +235,7 @@ async function preprocessarBitmap(bmp: ImageBitmap, forcarCaptura?: boolean): Pr
   const imgd = ctx.getImageData(0, 0, w, h)
   const gray = new Uint8ClampedArray(w * h)
   for (let i = 0, p = 0; i < imgd.data.length; i += 4, p++) gray[p] = 0.299 * imgd.data[i] + 0.587 * imgd.data[i + 1] + 0.114 * imgd.data[i + 2]
+  inverterSeEscuro(gray)
   autoContraste(gray, captura ? 0.5 : 2)
   if (captura) {
     // reforço leve sem binarizar (binarizar demais apaga texto fino do cupom)

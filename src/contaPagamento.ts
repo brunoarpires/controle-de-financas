@@ -1,5 +1,6 @@
 import type { Conta } from './db'
 import type { FormaPagamento } from './nota'
+import type { TipoComprovante } from './comprovante'
 
 const sem = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
@@ -8,13 +9,23 @@ export function escolherContaPorPagamento(
   contas: Conta[],
   pagamento?: FormaPagamento,
   bancoPagador?: string,
+  tipo?: TipoComprovante,
 ): Conta | undefined {
   if (!contas.length) return
-  if (pagamento === 'credito') return contas.find((x) => x.tipo === 'cartao') ?? contas[0]
+  if (pagamento === 'credito') {
+    return contas.find((x) => x.tipo === 'cartao' && /cartao\s*(de\s+)?credito/.test(sem(x.nome)))
+      ?? contas.find((x) => x.tipo === 'cartao')
+      ?? contas[0]
+  }
   if (pagamento === 'dinheiro') return contas.find((x) => x.tipo === 'dinheiro') ?? contas[0]
   if (pagamento === 'pix') {
     return contas.find((x) => x.tipo === 'pix')
       ?? contas.find((x) => /\bpix\b/i.test(x.nome))
+      ?? contas.find((x) => x.tipo === 'conta')
+      ?? contas[0]
+  }
+  if (tipo === 'debito') {
+    return contas.find((x) => /cartao\s*(de\s+)?debito/.test(sem(x.nome)))
       ?? contas.find((x) => x.tipo === 'conta')
       ?? contas[0]
   }
