@@ -24,7 +24,7 @@ Mais telas em [`docs/screenshots/`](docs/screenshots) e em [`screenshots/`](scre
 - 🎫 **VR - Ticket:** cada ticket tem um titular (integrante do perfil) que identifica de quem é o saldo. Qualquer integrante pode lançar crédito (receita) ou gasto (despesa) no ticket de qualquer pessoa. O painel mostra o saldo de cada ticket; no lançamento aparece quem registrou e de quem é o ticket.
 - 📊 **Orçamento** mensal por categoria, com barras de progresso e alerta ao chegar a 80% e ao estourar.
 - 📥 **Importar planilha** (CSV ou Excel `.xlsx`) e **backup** em JSON (com fotos).
-- 🧾 **Leitura de nota fiscal** (NFC-e): QR Code, consulta à página pública da SEFAZ, OCR no aparelho e tela de revisão antes de salvar. Também interpreta comprovantes comuns (Pix, inclusive o layout *Comprovante do Pix* / Pix Cobrança, TED, boleto, recarga, débito, maquininhas Stone/C6) e sugere a forma de pagamento (Pix, cartão, dinheiro).
+- 🧾 **Leitura de nota fiscal** (NFC-e): QR Code, consulta à página pública da SEFAZ, OCR no aparelho e tela de revisão antes de salvar. Também interpreta comprovantes do **Google Wallet / Google Pay**, dos apps dos bancos (Pix enviado ou recebido, TED, boleto, compra no cartão) e da via do cliente das maquininhas (Stone, Cielo, Rede, Getnet, PagBank/Moderninha, Mercado Pago Point, SumUp, InfinitePay, Ton, SafraPay e Sicredi), além de Pix Cobrança, recarga e débito. Prints em tema escuro são invertidos antes do OCR. O app sugere a forma de pagamento (Pix, cartão, dinheiro).
 - 🏷️ **Categoria automática:** sugere pela descrição (palavras-chave) e aprende com as correções.
 - 👨‍👩‍👧 **Modo família** e 🏢 **modo empresa:** contas próprias, perfil compartilhado, convite, papéis de administrador e membro (detalhes abaixo).
 - 📴 **Modo local:** funciona só no aparelho, sem conta e sem configurar nuvem.
@@ -99,7 +99,7 @@ O fluxo, na ordem em que o app tenta:
 4. Consulta o CNPJ na **BrasilAPI** (gratuita) para nome, endereço e CNAE, com cache local. Sem internet ou se a API falhar, esses campos ficam para preencher na revisão.
 5. **Sugere a categoria** e abre a **tela de revisão**. Nada é lançado automaticamente: a pessoa confere e só então salva. Dá para marcar como **parcelado** (2 a 48 parcelas).
 
-Também há leitores de comprovantes comuns (Pix, TED, boleto, recarga, débito, Stone, Pix C6). No layout **Comprovante do Pix** (Pix Cobrança: *Valor pago*, *Para*), o app usa o valor pago e o recebedor, e ignora *Valor original* e *Vencimento*. Ao importar, sugere a forma de pagamento correspondente (Pix, cartão ou dinheiro). NF-e em papel A4 (DANFE) e cupons SAT antigos entram só pelo OCR. Sempre há revisão antes de salvar.
+Também há leitores de comprovantes comuns: print do **Google Wallet / Google Pay**, apps dos bancos (Pix enviado ou recebido, TED, boleto, compra no cartão), via do cliente das maquininhas (Stone, Cielo, Rede, Getnet, PagBank/Moderninha, Mercado Pago Point, SumUp, InfinitePay, Ton, SafraPay e Sicredi), recarga e débito. No layout **Comprovante do Pix** (Pix Cobrança: *Valor pago*, *Para*), o app usa o valor pago e o recebedor, e ignora *Valor original* e *Vencimento*. Pix recebido entra como receita. Prints em tema escuro são invertidos antes do OCR. Ao importar, sugere a forma de pagamento correspondente (Pix, cartão ou dinheiro). NF-e em papel A4 (DANFE) e cupons SAT antigos entram só pelo OCR. Sempre há revisão antes de salvar.
 
 ## Segurança
 
@@ -141,6 +141,12 @@ O **VR - Ticket** é, ao mesmo tempo, uma **categoria de receita** (o crédito q
 No banco, a coluna `titular_id` só é permitida em contas do tipo `vr_ticket`. As políticas de segurança (RLS) continuam as mesmas: o `user_id` do lançamento é quem registrou.
 
 ## Novidades
+
+### v1.3.0 (28/11/2026)
+
+- O leitor de comprovantes passa a reconhecer o print de transação do **Google Wallet / Google Pay** (incluindo capturas em tema escuro, com inversão automática no OCR).
+- Também lê comprovantes típicos dos **apps dos bancos** (Pix enviado ou recebido, TED, boleto e compra no cartão) e a **via do cliente das maquininhas** mais conhecidas (Stone, Cielo, Rede, Getnet, PagBank/Moderninha, Mercado Pago Point, SumUp, InfinitePay, Ton, SafraPay e Sicredi): estabelecimento, valor, data/hora, crédito ou débito, parcelas, bandeira e final do cartão.
+- Pix recebido entra como receita; o restante continua como despesa. AUT, NSU, DOC e CNPJ não são usados como valor.
 
 ### v1.2.0 (27/11/2026)
 

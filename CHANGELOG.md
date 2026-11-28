@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 — 28/11/2026
+
+- Leitor de comprovantes: print de transação do **Google Wallet / Google Pay** (Android, tema escuro), com data sem ano, limpeza de prefixos como `IFD*` e um único olho de valores já existente no app.
+- Comprovantes típicos dos apps dos bancos (Nubank, Itaú, Bradesco, Banco do Brasil, Caixa, Santander, Inter, C6, PicPay, Mercado Pago e PagBank): Pix enviado ou recebido, TED, boleto/pagamento de conta e compra no cartão. Pix recebido entra como receita.
+- Via do cliente das maquininhas: Stone (já havia), Cielo, Rede, Getnet, PagBank/Moderninha, Mercado Pago Point, SumUp, InfinitePay, Ton, SafraPay e Sicredi. Lê estabelecimento, valor, data/hora, crédito ou débito, parcelas, bandeira e final do cartão; ignora AUT/NSU/DOC/CNPJ como valor.
+- Prints em modo escuro (texto claro em fundo escuro) são invertidos antes do OCR no cliente.
+
 ## 1.2.0 — 27/11/2026
 
 - Card de **saldo total** no Início: receitas menos despesas de todo o período, acima do seletor de mês.

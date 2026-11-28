@@ -9,11 +9,11 @@ import { aprender, sugerirCategoria } from '../categorizar'
 import { CampoData, CampoHora, Titulo } from '../components/ui'
 import { ir } from '../rota'
 import { escolherContaPorPagamento } from '../contaPagamento'
-const resumoComprovante = (c: NonNullable<DadosNota['comprovante']>) => [c.favorecido && `Favorecido: ${c.favorecido}`, c.documento && `Doc: ${c.documento}`, c.instituicao && `Instituição: ${c.instituicao}`, c.telefone && `Telefone: ${c.telefone}`, c.bancoPagador && `Pago via: ${c.bancoPagador}`, c.idTransacao && `ID: ${c.idTransacao}`].filter(Boolean).join(' · ')
+const resumoComprovante = (c: NonNullable<DadosNota['comprovante']>) => [c.favorecido && `${c.natureza === 'receita' ? 'De' : 'Favorecido'}: ${c.favorecido}`, c.documento && `Doc: ${c.documento}`, c.instituicao && `Instituição: ${c.instituicao}`, c.bandeira && `Bandeira: ${c.bandeira}`, c.finalCartao && `Final ${c.finalCartao}`, c.parcelas && c.parcelas >= 2 && `${c.parcelas}x`, c.telefone && `Telefone: ${c.telefone}`, c.bancoPagador && `Pago via: ${c.bancoPagador}`, c.idTransacao && `ID: ${c.idTransacao}`].filter(Boolean).join(' · ')
 const sem = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 export default function ImportNota() {
-  const cats = useCategorias().filter((c) => c.tipo === 'despesa'), contas = useContas()
+  const todasCats = useCategorias(), contas = useContas()
   const [foto, setFoto] = useState<Blob>()
   const [url, setUrl] = useState('')
   const [etapa, setEtapa] = useState<{ msg: string; p?: number } | null>(null)
@@ -36,13 +36,15 @@ export default function ImportNota() {
       r.data ??= hojeISO()
       const comp = r.comprovante
       if (comp || r.pagamento) {
-        const c = escolherContaPorPagamento(contas, comp?.pagamento ?? r.pagamento, comp?.bancoPagador)
+        const c = escolherContaPorPagamento(contas, comp?.pagamento ?? r.pagamento, comp?.bancoPagador, comp?.tipo)
         if (c) setContaId(c.id)
       }
       setD(r); setValor(r.total ? r.total.toFixed(2).replace('.', ',') : '')
-      const catRecarga = comp?.tipo === 'recarga' ? cats.find((c) => /telefon|celular|internet/i.test(sem(c.nome)))?.id : undefined
+      const nat = comp?.natureza ?? 'despesa'
+      const catsNat = todasCats.filter((c) => c.tipo === nat)
+      const catRecarga = comp?.tipo === 'recarga' ? catsNat.find((c) => /telefon|celular|internet/i.test(sem(c.nome)))?.id : undefined
       if (catRecarga) setCategoriaId(catRecarga)
-      else setCategoriaId((await sugerirCategoria(comp ? `${comp.favorecido ?? ''} ${comp.descricao}` : `${r.estabelecimento ?? ''} ${r.razaoSocial ?? ''}`, 'despesa', r.cnae)) ?? cats.find((c) => c.nome === 'Outros')?.id)
+      else setCategoriaId((await sugerirCategoria(comp ? `${comp.favorecido ?? ''} ${comp.descricao}` : `${r.estabelecimento ?? ''} ${r.razaoSocial ?? ''}`, nat, r.cnae)) ?? catsNat.find((c) => c.nome === 'Outros')?.id)
     } finally { setEtapa(null) }
   }
   async function buscarCNPJ() {
@@ -57,9 +59,11 @@ export default function ImportNota() {
   const setItem = (i: number, p: Partial<ItemNota>) => set({ itens: d!.itens.map((x, k) => (k === i ? { ...x, ...p } : x)) })
   const v = parseValorBR(valor)
   const somaItens = d?.itens.reduce((s, i) => s + (i.valor ?? 0), 0) ?? 0
+  const natureza = d?.comprovante?.natureza ?? 'despesa'
+  const cats = todasCats.filter((c) => c.tipo === natureza)
 
   const nParc = Math.max(0, Math.min(48, Math.floor(Number(String(nParcelas).replace(/\D/g, '')) || 0)))
-  const querParcelar = parcelado && nParc >= 2
+  const querParcelar = natureza === 'despesa' && parcelado && nParc >= 2
 
   async function salvar() {
     if (!d || !v || !categoriaId || !contaId) return
@@ -74,7 +78,7 @@ export default function ImportNota() {
       const vals = dividirParcelas(Math.abs(v), nParc)
       const agora = Date.now()
       const rows: Transacao[] = vals.map((valorParc, i) => ({
-        id: uuid(), tipo: 'despesa', valor: valorParc, data: addMeses(d.data!, i),
+        id: uuid(), tipo: natureza, valor: valorParc, data: addMeses(d.data!, i),
         hora: i === 0 ? (d.hora || undefined) : undefined,
         descricao, categoriaId, contaId, foto: i === 0 ? fotoComp || undefined : undefined,
         criadoEm: agora + i, nota: i === 0 ? nota : undefined, observacao: i === 0 ? obs : undefined,
@@ -82,7 +86,7 @@ export default function ImportNota() {
       }))
       await salvarReg('transacoes', rows)
     } else {
-      await salvarReg('transacoes', { id: uuid(), tipo: 'despesa', valor: Math.abs(v), data: d.data!, hora: d.hora || undefined, descricao, categoriaId, contaId, foto: fotoComp || undefined, criadoEm: Date.now(), nota, observacao: obs })
+      await salvarReg('transacoes', { id: uuid(), tipo: natureza, valor: Math.abs(v), data: d.data!, hora: d.hora || undefined, descricao, categoriaId, contaId, foto: fotoComp || undefined, criadoEm: Date.now(), nota, observacao: obs })
     }
     await aprender(descricao, categoriaId)
     ir('/lancamentos')
@@ -129,7 +133,7 @@ export default function ImportNota() {
                 <div><label className="label">Categoria</label><select className="input" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>{cats.map((c) => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}</select></div>
                 <div><label className="label">Pago com</label><select className="input" value={contaId} onChange={(e) => setContaId(e.target.value)}>{contas.map((c) => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}</select></div>
               </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+              {natureza === 'despesa' && <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
                 <label className="flex items-center gap-3 text-sm font-medium">
                   <input type="checkbox" className="w-5 h-5 accent-emerald-600" checked={parcelado} onChange={(e) => setParcelado(e.target.checked)} />
                   Parcelado
@@ -143,7 +147,7 @@ export default function ImportNota() {
                     {querParcelar && v && v > 0 && <p className="text-xs text-slate-500 mt-1">{nParc}× de R$ {dividirParcelas(Math.abs(v), nParc)[0].toFixed(2).replace('.', ',')}</p>}
                   </div>
                 )}
-              </div>
+              </div>}
               <div><label className="label">Observação (opcional)</label><textarea className="input min-h-[4rem] resize-y" rows={2} value={obsLivre} onChange={(e) => setObsLivre(e.target.value)} placeholder="Anotação livre sobre este lançamento" /></div>
               {!d.comprovante && <div><label className="label">Chave de acesso</label><input className="input font-mono text-xs" value={d.chave ?? ''} onChange={(e) => set({ chave: e.target.value.replace(/\s/g, '') })} placeholder="44 dígitos (opcional)" /></div>}
               {d.itens.length > 0 && (
@@ -153,7 +157,7 @@ export default function ImportNota() {
                   ))}</div></details>
               )}
               {d.url && <a className="text-xs text-brand-600 underline break-all" href={d.url} target="_blank" rel="noreferrer">Abrir nota no site da Sefaz</a>}
-              <button className="btn-primary w-full py-3.5 text-lg" disabled={!v || !categoriaId || !d.data || (parcelado && nParc < 2)} onClick={salvar}><Check />{querParcelar ? `Salvar ${nParc} parcelas` : 'Salvar despesa'}</button>
+              <button className="btn-primary w-full py-3.5 text-lg" disabled={!v || !categoriaId || !d.data || (natureza === 'despesa' && parcelado && nParc < 2)} onClick={salvar}><Check />{querParcelar ? `Salvar ${nParc} parcelas` : natureza === 'receita' ? 'Salvar receita' : 'Salvar despesa'}</button>
             </div>
           )}
         </div>
